@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { AppShell } from './components/AppShell'
 import { DashboardScreen } from './features/dashboard/DashboardScreen'
-import { MissionMap, missionSummaries } from './features/dashboard/MissionMap'
+import { MissionMap } from './features/dashboard/MissionMap'
+import { MissionScreen } from './features/missions/screens/MissionScreen'
 
 type Route = { page: 'dashboard' | 'map' } | { page: 'mission'; missionId: string }
 
@@ -10,12 +11,6 @@ function readRoute(): Route {
   if (path === 'map') return { page: 'map' }
   const mission = /^mission\/(mission-[1-5])$/.exec(path)
   return mission ? { page: 'mission', missionId: mission[1] } : { page: 'dashboard' }
-}
-
-// Task 3 replaces this temporary screen with features/missions/screens/MissionScreen.
-function MissionScreen({ missionId }: { missionId: string; onComplete: (missionId: string) => void }) {
-  const mission = missionSummaries.find((item) => item.id === missionId)!
-  return <section className="panel mission-placeholder"><p className="eyebrow">Миссия {missionId.slice(-1)} из 5</p><h1>{mission.title}</h1><p>Интерактивный экран миссии появится на следующем этапе разработки.</p><a className="button button-secondary" href="#/map">Вернуться к карте →</a></section>
 }
 
 export default function App() {

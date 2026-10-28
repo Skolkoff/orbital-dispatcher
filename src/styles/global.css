@@ -124,3 +124,31 @@ progress::-moz-progress-bar { background: var(--violet); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
+.mission-heading { margin: 24px 0; max-width: 800px; }
+.mission-heading h1 { margin: 12px 0 18px; }
+.mission-heading > p:last-child { font-size: 1.1rem; }
+.mission-layout { display: grid; gap: 24px; align-items: start; }
+.grid-panel { padding: 12px; min-width: 0; }
+.grid-help { font-size: .8rem; color: var(--ink-muted); }
+.coordinate-grid { display: block; width: 100%; max-width: 560px; margin: auto; aspect-ratio: 1; touch-action: manipulation; cursor: crosshair; }
+.coordinate-grid text { fill: var(--ink); }
+.grid-cursor { visibility: hidden; }
+.coordinate-grid:focus .grid-cursor { visibility: visible; }
+.coordinate-entry { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.coordinate-entry label { display: grid; flex: 1; min-width: 70px; gap: 4px; font-size: .85rem; font-weight: bold; }
+.coordinate-entry input { width: 100%; min-height: 48px; background: var(--paper); color: var(--ink); border: var(--line); border-radius: 10px; padding: 8px; }
+.coordinate-entry > button { flex: 1 1 160px; }
+.coordinate-entry + .grid-help { margin-top: 12px; }
+.selection-summary { margin-top: 16px; font-weight: bold; }
+.waypoint-list { display: flex; flex-wrap: wrap; gap: 12px 36px; padding-left: 28px; }
+.grid-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 16px; }
+.reset-answer { color: var(--violet); background: none; border: 0; padding: 12px 0; min-height: 48px; }
+button:disabled { opacity: .55; }
+.mission-controls > .button { margin-top: 24px; width: 100%; }
+.mission-controls > .reset-answer { display: block; margin-top: 8px; }
+.mission-hint { background: var(--lilac); border-radius: 12px; padding: 16px; }
+.mission-feedback { background: var(--lilac); border: var(--line); border-radius: 12px; padding: 16px; margin-top: 20px; }
+.mission-feedback p { margin-top: 10px; }
+.mission-feedback .button { margin-top: 16px; }
+.mission-feedback--correct { background: var(--lime-soft); }
+@media (min-width: 960px) { .mission-layout { grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); } .grid-panel { padding: 24px; } }
