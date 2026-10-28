@@ -196,6 +196,7 @@ jobs:
           rm -f "$archive"
           mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
           chmod -R u+rwX storage bootstrap/cache
-          /opt/php/8.3/bin/php artisan optimize:clear
+          /opt/php/8.3/bin/php artisan config:clear
           /opt/php/8.3/bin/php artisan migrate --force
+          /opt/php/8.3/bin/php artisan optimize:clear
           REMOTE
