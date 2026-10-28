@@ -199,4 +199,15 @@ jobs:
           /opt/php/8.3/bin/php artisan config:clear
           /opt/php/8.3/bin/php artisan migrate --force
           /opt/php/8.3/bin/php artisan optimize:clear
+          site_root="$HOME/www/portfolioskolkoff.ru"
+          public_root="$site_root/public"
+          mkdir -p "$public_root"
+          cp -a "$app_path/public/." "$public_root/"
+          rm -f "$public_root/index.html"
+          sed -i \
+            -e "s|__DIR__.'/../storage/framework/maintenance.php'|'$app_path/storage/framework/maintenance.php'|" \
+            -e "s|__DIR__.'/../vendor/autoload.php'|'$app_path/vendor/autoload.php'|" \
+            -e "s|__DIR__.'/../bootstrap/app.php'|'$app_path/bootstrap/app.php'|" \
+            "$public_root/index.php"
+          /opt/php/8.3/bin/php -l "$public_root/index.php"
           REMOTE
