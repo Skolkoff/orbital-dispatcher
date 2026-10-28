@@ -1,4 +1,8 @@
 import { useEffect, useState } from 'react'
+import { AuthProvider } from './features/auth/AuthProvider'
+import { AuthScreen } from './features/auth/AuthScreen'
+import type { AuthPage } from './features/auth/AuthScreen'
+import './styles/auth.css'
 import type { ReactNode } from 'react'
 import { AppShell } from './components/AppShell'
 import { DashboardScreen } from './features/dashboard/DashboardScreen'
@@ -17,6 +21,7 @@ import type { LearningProgress } from './features/progress/LearningProgressServi
 import type { ExerciseAnswer } from './features/learning/types'
 
 type AppRoute =
+  | { page: 'auth'; authPage: AuthPage; token?: string; email?: string }
   | { page: 'dashboard' }
   | { page: 'game' }
   | { page: 'notFound' }
@@ -27,6 +32,9 @@ type AppRoute =
 
 function readRoute(): AppRoute {
   const path = window.location.hash.replace(/^#\/?/, '')
+  const reset = /^reset-password\/([^?]+)(?:\?(.*))?$/.exec(path)
+  if (reset) return { page: 'auth', authPage: 'reset-password', token: decodeURIComponent(reset[1]), email: new URLSearchParams(reset[2] ?? '').get('email') ?? '' }
+  if (['login', 'register', 'forgot-password', 'account'].includes(path)) return { page: 'auth', authPage: path as AuthPage }
   if (!path || path === 'dashboard') return { page: 'dashboard' }
   if (path === 'map') return { page: 'map' }
   if (path === 'game') return { page: 'game' }
@@ -73,11 +81,16 @@ function RouteNotice({ title, children }: { title: string; children: ReactNode }
 }
 
 export default function App() {
+  return <AuthProvider><CourseApp /></AuthProvider>
+}
+
+function CourseApp() {
   const [route, setRoute] = useState<AppRoute>(readRoute)
   const [progress, setProgress] = useState<LearningProgress>(() => learningProgressService.load())
   const [sessionId] = useState(newSessionId)
   const [reviewExerciseId, setReviewExerciseId] = useState<string | null>(() => reviewExerciseForRoute(route, progress))
   const [exerciseVariantIndex, setExerciseVariantIndex] = useState(() => variantIndexForRoute(route, progress))
+  useEffect(() => learningProgressService.subscribe(() => setProgress(learningProgressService.load())), [])
   const moduleProgress = buildModuleProgress(progress)
   const moduleById = new Map(courseModules.map((module) => [module.id, module]))
   const exerciseById = new Map(courseModules.flatMap((module) => module.exercises).map((exercise) => [exercise.id, exercise]))
@@ -158,7 +171,9 @@ export default function App() {
   }
 
   let content: ReactNode
-  if (route.page === 'dashboard') {
+  if (route.page === 'auth') {
+    content = <AuthScreen key={route.authPage + (route.token ?? '')} page={route.authPage} token={route.token} email={route.email} />
+  } else if (route.page === 'dashboard') {
     content = <DashboardScreen modules={moduleProgress} onOpenModule={openModule} />
   } else if (route.page === 'game') {
     content = <GameScreen />
@@ -244,6 +259,6 @@ export default function App() {
     content = <RouteNotice title="Страница не найдена">Выбери раздел из навигации и продолжи полёт по курсу.</RouteNotice>
   }
 
-  const shellPage = route.page === 'review' ? 'practice' : route.page === 'notFound' ? 'dashboard' : route.page
+  const shellPage = route.page === 'review' ? 'practice' : route.page === 'notFound' || route.page === 'auth' ? 'dashboard' : route.page
   return <AppShell page={shellPage}>{content}</AppShell>
 }

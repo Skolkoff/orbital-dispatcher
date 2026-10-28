@@ -1,9 +1,12 @@
+import { useAuth } from '../features/auth/AuthProvider'
+import { syncLabels } from '../features/progress/AccountProgressSync'
 import type { ReactNode } from 'react'
 import { BrandLogo } from './BrandLogo'
 import { BottomNavigation, NavigationLinks } from './BottomNavigation'
 import type { NavigationPage } from './BottomNavigation'
 
 export function AppShell({ children, page }: { children: ReactNode; page: NavigationPage }) {
+  const auth = useAuth()
   return <div className="app-shell">
     <a className="skip-link" href="#main-content" onClick={(event) => {
       event.preventDefault()
@@ -18,9 +21,10 @@ export function AppShell({ children, page }: { children: ReactNode; page: Naviga
         <nav className="desktop-navigation" aria-label="Основная навигация">
           <NavigationLinks page={page} />
         </nav>
-        <span className="demo-badge"><span aria-hidden="true">●</span> Учебный режим</span>
+        <a className="account-entry" href={auth.account ? '#/account' : '#/login'}><span className="account-entry__icon" aria-hidden="true">✦</span><span><strong>{auth.account?.call_sign ?? 'Войти'}</strong><small>{auth.account ? syncLabels[auth.status] : auth.restoring ? 'Проверяем сессию…' : 'Сохранить свой маршрут'}</small></span></a>
       </div>
     </header>
+    {auth.notice && <p className="account-notice" role="status">{auth.notice}</p>}
     <main id="main-content" className="app-main" tabIndex={-1}>{children}</main>
     <footer className="app-footer">
       <span>Учебный тренажёр «Орбитальный диспетчер»</span>

@@ -34,7 +34,7 @@ export type ModuleSummary = {
 export const LEARNING_PROGRESS_STORAGE_KEY = 'orbital-dispatcher.learning-progress.v2'
 const LEGACY_PROGRESS_STORAGE_KEY = 'orbital-dispatcher.progress.v1'
 
-function emptyProgress(): LearningProgress {
+export function emptyProgress(): LearningProgress {
   return { version: 2, legacyCompletedMissionIds: [], exerciseResults: {} }
 }
 
@@ -68,7 +68,7 @@ function isLearningProgress(value: unknown): value is LearningProgress {
   return Object.values(progress.exerciseResults).every(isExerciseProgress)
 }
 
-function parseProgress(raw: string | null): LearningProgress | null {
+export function parseProgress(raw: string | null): LearningProgress | null {
   if (raw === null) return null
   try {
     const parsed: unknown = JSON.parse(raw)
@@ -81,8 +81,40 @@ function parseProgress(raw: string | null): LearningProgress | null {
 let memoryProgress = emptyProgress()
 let memoryNeedsPersistence = false
 
+let accountId: number | null = null
+let accountProgress = emptyProgress()
+const listeners = new Set<() => void>()
+function notify() { for (const listener of listeners) listener() }
+export const accountStorageKey = (id: number, kind: 'cache' | 'outbox') => `orbital-dispatcher.account.${id}.${kind}`
+export function readAccountProgress(id: number, kind: 'cache' | 'outbox') {
+  try { return parseProgress(browserStorage()?.getItem(accountStorageKey(id, kind)) ?? null) } catch { return null }
+}
+export function writeAccountProgress(id: number, kind: 'cache' | 'outbox', value: LearningProgress | null) {
+  try {
+    const storage = browserStorage()
+    if (value) storage?.setItem(accountStorageKey(id, kind), JSON.stringify(value))
+    else storage?.removeItem(accountStorageKey(id, kind))
+  } catch { /* The active session retains progress when browser storage is unavailable. */ }
+}
+
 export const learningProgressService = {
+  subscribe(listener: () => void) {
+    listeners.add(listener)
+    return () => { listeners.delete(listener) }
+  },
+  useAnonymous() {
+    accountId = null
+    accountProgress = emptyProgress()
+    notify()
+  },
+  useAccount(id: number, value: LearningProgress) {
+    accountId = id
+    accountProgress = value
+    writeAccountProgress(id, 'cache', value)
+    notify()
+  },
   load(): LearningProgress {
+    if (accountId !== null) return accountProgress
     const storage = browserStorage()
     if (!storage) return memoryProgress
     try {
@@ -145,6 +177,13 @@ export const learningProgressService = {
         },
       },
     }
+    if (accountId !== null) {
+      accountProgress = next
+      writeAccountProgress(accountId, 'cache', next)
+      writeAccountProgress(accountId, 'outbox', next)
+      notify()
+      return next
+    }
     memoryProgress = next
     try {
       browserStorage()?.setItem(LEARNING_PROGRESS_STORAGE_KEY, JSON.stringify(next))
@@ -153,6 +192,7 @@ export const learningProgressService = {
       // The session continues with its in-memory copy if persistence fails.
       memoryNeedsPersistence = true
     }
+    notify()
     return next
   },
 
