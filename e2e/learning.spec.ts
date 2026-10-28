@@ -81,7 +81,7 @@ for (const kind of exerciseModes) {
   test('learner can solve a ' + kind + ' exercise', async ({ page }) => {
     await seedProgress(page, progressBefore(exercise))
     await page.goto('/#/module/' + exercise.moduleId + '/practice/' + exercise.id)
-    await expect(page.getByRole('heading', { name: exercise.prompt, exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Задание', exact: true }).getByRole('heading', { name: exercise.prompt, exact: true })).toBeVisible()
 
     await answerCorrectly(page, exercise)
 
@@ -119,9 +119,9 @@ test('lesson, correction, hint, completion, and local progress survive a refresh
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? 'null'), storageKey)
   expect(saved.exerciseResults[first.id]).toMatchObject({ solved: true, attempts: 2, firstIndependentCorrect: false, hintUsed: true })
   await page.getByRole('button', { name: 'Следующее задание' }).click()
-  await expect(page.getByRole('heading', { name: module.exercises[1].prompt, exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Задание', exact: true }).getByRole('heading', { name: module.exercises[1].prompt, exact: true })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: module.exercises[1].prompt, exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Задание', exact: true }).getByRole('heading', { name: module.exercises[1].prompt, exact: true })).toBeVisible()
   expect(pageErrors).toEqual([])
 })
 
@@ -140,7 +140,7 @@ test('later-session review changes the exercise and records separate review evid
   await page.goto('/#/review/' + exercise.id)
 
   const variant = createExerciseVariant(exercise, 1)
-  await expect(page.getByRole('heading', { name: variant.prompt, exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Задание', exact: true }).getByRole('heading', { name: variant.prompt, exact: true })).toBeVisible()
   expect(variant.prompt).not.toBe(exercise.prompt)
   await answerCorrectly(page, variant)
   await expect(page.getByText(variant.correctFeedback, { exact: true })).toBeVisible()
@@ -160,7 +160,7 @@ test('later-session review changes the choices and still checks the correct opti
 
   const variant = createExerciseVariant(exercise, 1)
   if (variant.kind !== 'choice') throw new Error('Expected the review to keep the choice mode')
-  await expect(page.getByRole('heading', { name: variant.prompt, exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Задание', exact: true }).getByRole('heading', { name: variant.prompt, exact: true })).toBeVisible()
   expect(variant.options.map((option) => option.label)).not.toEqual(exercise.options.map((option) => option.label))
   const correct = variant.options.find((option) => option.id === variant.correctOptionId)
   if (!correct) throw new Error('The review variant needs a correct option')
@@ -194,6 +194,18 @@ test.describe('responsive layouts', () => {
       expect(sizes.content).toBe(sizes.viewport)
       if (width < 900) await expect(page.locator('.bottom-navigation')).toBeVisible()
       else await expect(page.locator('.desktop-navigation')).toBeVisible()
+
+      const exercise = courseModules[5].exercises[4]
+      await seedProgress(page, progressBefore(exercise))
+      await page.goto('/#/module/' + exercise.moduleId + '/practice/' + exercise.id)
+      await page.reload()
+      const task = page.getByRole('region', { name: 'Задание', exact: true })
+      await expect(task.getByText('Твоя задача', { exact: true })).toBeVisible()
+      await expect(task.getByRole('heading', { name: exercise.prompt, exact: true })).toBeVisible()
+      await expect(task.getByText('Ситуация', { exact: true })).toBeVisible()
+      await expect(task.getByText(exercise.context!, { exact: true })).toBeVisible()
+      const practiceSizes = await page.evaluate(() => ({ viewport: window.innerWidth, content: document.documentElement.scrollWidth }))
+      expect(practiceSizes.content).toBe(practiceSizes.viewport)
     })
   }
 })

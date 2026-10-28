@@ -7,7 +7,7 @@ export type ExerciseAnswer =
   | { kind: 'route' | 'shape'; points: Point[] }
   | { kind: 'number'; value: number }
 export type ExerciseBase = {
-  id: string; moduleId: string; skillId: string; prompt: string
+  id: string; moduleId: string; skillId: string; prompt: string; context?: string
   difficulty: 1 | 2 | 3; hints: string[]; correctFeedback: string
   correction: string; isTransfer: boolean
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { courseModules } from './course'
+import { createExerciseVariant } from '../services/createExerciseVariant'
 
 describe('coordinate course', () => {
   it('contains six ordered topics and exactly five progressively harder exercises each', () => {
@@ -37,6 +38,29 @@ describe('coordinate course', () => {
           expect(value).toBeLessThanOrEqual(exercise.grid.max)
         }
       }
+    }
+  })
+
+  it('gives every exercise one short direct instruction', () => {
+    for (const exercise of courseModules.flatMap((module) => module.exercises)) {
+      expect(exercise.prompt, exercise.id).toMatch(/^(Выбери|Укажи|Введи|Отметь|Построй|Запиши|Найди|Сколько|Как|В какой)/)
+      expect(exercise.prompt.length, exercise.id).toBeLessThanOrEqual(150)
+      expect(exercise.prompt.match(/[.!?]/g), exercise.id).toHaveLength(1)
+    }
+  })
+
+  it('gives review variants a direct single instruction', () => {
+    for (const exercise of courseModules.flatMap((module) => module.exercises)) {
+      const variant = createExerciseVariant(exercise, 1)
+      expect(variant.prompt, exercise.id).toMatch(/^(Выбери|Введи|Отметь|Построй|Сколько|Как)/)
+      expect(variant.prompt.match(/[.!?]/g), exercise.id).toHaveLength(1)
+    }
+  })
+
+  it('keeps optional scenario context in review variants for every response mode', () => {
+    for (const exercise of courseModules.flatMap((module) => module.exercises)) {
+      const withContext = { ...exercise, context: 'Учебная ситуация для повторения.' }
+      expect(createExerciseVariant(withContext, 1).context).toBe('Учебная ситуация для повторения.')
     }
   })
 

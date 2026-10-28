@@ -43,12 +43,12 @@ export function PracticeScreen({
 
   const canShowHint = hintIndex < exercise.hints.length - 1
 
-  return <article className="practice-screen" aria-labelledby="exercise-prompt">
+  return <article className="practice-screen" aria-labelledby="practice-title">
     <a className="text-link practice-screen__back" href="#/map">← К карте курса</a>
     <header className="practice-heading">
       <div>
-        <p className="eyebrow">{isReview ? 'Повторение навыка' : 'Практика · модуль ' + exercise.moduleId.split('-')[1]}</p>
-        <h1 id="exercise-prompt">{exercise.prompt}</h1>
+        <p className="eyebrow">Орбитальный диспетчер</p>
+        <h1 id="practice-title">{isReview ? 'Повторение навыка' : 'Практика · модуль ' + exercise.moduleId.split('-')[1]}</h1>
       </div>
       <div className="practice-heading__counter" aria-label={'Задание ' + exerciseNumber + ' из ' + exerciseTotal}>
         <strong>{String(exerciseNumber).padStart(2, '0')}</strong><span> / {String(exerciseTotal).padStart(2, '0')}</span>
@@ -62,8 +62,17 @@ export function PracticeScreen({
     <div className="practice-layout">
       <section className="practice-task panel" aria-label="Задание">
         <div className="practice-task__meta">
+          <span className="pill">Задание {exerciseNumber}</span>
           <span className="pill">Шаг {exercise.difficulty}</span>
           {exercise.isTransfer && <span className="pill pill-lime">Задача на перенос</span>}
+        </div>
+        {exercise.context && <div className="practice-task__context">
+          <p className="eyebrow">Ситуация</p>
+          <p>{exercise.context}</p>
+        </div>}
+        <div className="practice-task__instruction">
+          <p className="eyebrow">Твоя задача</p>
+          <h2 id="exercise-prompt">{exercise.prompt}</h2>
         </div>
         <ExerciseRenderer exercise={exercise} value={answer} onChange={updateAnswer} />
       </section>
