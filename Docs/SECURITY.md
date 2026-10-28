@@ -30,7 +30,7 @@ vendor/bin/pint --test
 php artisan test
 ```
 
-The Laravel feature suite uses the dedicated `orbital_dispatcher_test` MySQL database and deletes/recreates its tables. Never configure that name to point at real or valuable data. The browser suite also requires the local MySQL databases and Playwright Chromium; see [Development](DEVELOPMENT.md).
+The Laravel feature suite uses the dedicated `orbital_dispatcher_test` MySQL database and resets its tables. Never configure that name to point at real or valuable data. The browser suite also uses this dedicated test database and Playwright Chromium; see [Development](DEVELOPMENT.md).
 
 On macOS, install Gitleaks and Semgrep with `brew install gitleaks semgrep`. Playwright installs its browser separately with `npx playwright install chromium`.
 

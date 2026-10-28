@@ -69,7 +69,7 @@ npm run test:preview
 npm run security:check
 ```
 
-Install Playwright's Chromium browser once with `npx playwright install chromium`. The E2E suite starts the required local servers; keep MySQL and both databases available. Server feature tests use `orbital_dispatcher_test` and reset its tables, so never point that test database at user data.
+Install Playwright's Chromium browser once with `npx playwright install chromium`. The E2E suite starts Laravel and Vite and applies any pending migrations to `orbital_dispatcher_test`; keep MySQL and that dedicated test database available. Laravel feature tests use the same test database and reset their tables, so never point it at user data.
 
 Run Laravel checks from `server/`:
 
