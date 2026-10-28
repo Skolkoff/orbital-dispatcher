@@ -1,0 +1,18 @@
+:root {
+  --paper: #fff8e8;
+  --paper-elevated: #fffdf7;
+  --grid: #e8dfc5;
+  --ink: #1c1b1b;
+  --ink-muted: #6e6b7b;
+  --violet: #573bce;
+  --violet-bright: #7057e8;
+  --lilac: #ece7fc;
+  --coral: #fd829b;
+  --coral-ink: #a13a53;
+  --lime: #c7f259;
+  --lime-soft: #f2fcda;
+  --line: 2px solid var(--ink);
+  --shadow: 4px 4px 0 var(--ink);
+  --radius: 20px;
+  --font: 'Trebuchet MS', Arial, sans-serif;
+}

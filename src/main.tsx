@@ -1,11 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import App from './App'
+import './styles/tokens.css'
+import './styles/global.css'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <main>
-      <h1>Орбитальный диспетчер</h1>
-      <p>Координатный тренажёр для учеников 5–6 классов.</p>
-    </main>
-  </StrictMode>,
-)
+createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
