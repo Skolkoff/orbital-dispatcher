@@ -63,6 +63,7 @@ it('stops at an obstacle and lets the learner correct the route without resettin
   fireEvent.click(screen.getByRole('button', { name: 'Запустить полёт' }))
   await advanceFlight(320)
   expect(screen.getByText('Корабль задел препятствие в точке (1; 0).')).toBeTruthy()
+  expect(screen.getByRole('alert').textContent).toMatch(/нажми на точку маршрута до столкновения/i)
 
   await advanceFlight(1_000)
   const timeAfterCollision = screen.getByRole('timer').textContent

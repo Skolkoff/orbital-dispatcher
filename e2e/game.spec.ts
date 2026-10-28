@@ -87,6 +87,7 @@ test('learner can launch a route, learn from a collision, land, and restart', as
   for (const point of collisionRoute.slice(1)) await addPoint(page, point)
   await page.getByRole('button', { name: 'Запустить полёт' }).click()
   await expect(page.getByRole('alert')).toContainText('Астероид на пути', { timeout: 10_000 })
+  await expect(page.getByRole('alert')).toContainText(/нажми на точку маршрута до столкновения/i)
 
   await addPoint(page, mission.start)
   const safeRoute = shortestSafePath(mission)
@@ -156,12 +157,16 @@ test.describe('game touch input', () => {
       ? { x: mission.start.x + 1, y: mission.start.y }
       : { x: mission.start.x - 1, y: mission.start.y }
     const board = page.locator('[data-mission-grid]')
+    await board.scrollIntoViewIfNeeded()
     const bounds = await board.boundingBox()
     if (!bounds) throw new Error('Mission grid is not visible')
     const svgX = 56 + ((next.x - mission.min) / (mission.max - mission.min)) * 288
     const svgY = 344 - ((next.y - mission.min) / (mission.max - mission.min)) * 288
 
     await board.tap({ position: { x: (svgX / 400) * bounds.width, y: (svgY / 400) * bounds.height } })
+    const cursor = board.locator('.mission-grid__cursor')
+    await expect(cursor).toHaveAttribute('cx', String(svgX))
+    await expect(cursor).toHaveAttribute('cy', String(svgY))
     await expect(page.getByText('Точек в маршруте: 2')).toBeVisible()
   })
 })

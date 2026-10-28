@@ -176,7 +176,7 @@ export function GameScreen({ createMission = generateMission }: GameScreenProps)
         </section>
         {collisionPoint && <section className="game-outcome game-outcome--collision" role="alert">
           <span className="game-outcome__icon" aria-hidden="true">!</span>
-          <div><p className="eyebrow">Столкновение</p><h2>Астероид на пути</h2><p>Корабль задел препятствие в точке {pointLabel(collisionPoint)}. Выбери более безопасный маршрут и запусти полёт ещё раз.</p></div>
+          <div><p className="eyebrow">Столкновение</p><h2>Астероид на пути</h2><p>Корабль задел препятствие в точке {pointLabel(collisionPoint)}. Чтобы исправить маршрут, нажми на точку маршрута до столкновения — точки после неё удалятся. Затем добавь безопасный обход и запусти полёт снова.</p></div>
         </section>}
         {phase === 'won' && score !== null && <section className="game-outcome game-outcome--success" role="status">
           <span className="game-outcome__icon" aria-hidden="true">✓</span>
