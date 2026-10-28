@@ -16,13 +16,16 @@ export function DashboardScreen({ modules, onOpenModule }: DashboardScreenProps)
   const firstCorrect = modules.reduce((sum, item) => sum + item.summary.firstTryCorrect, 0)
   const attempts = modules.reduce((sum, item) => sum + item.attempts, 0)
   const hints = modules.reduce((sum, item) => sum + item.hintsUsed, 0)
-  const nextModule = modules.find((item) => !item.summary.completed)?.module ?? modules[0]?.module
+  const activeModule = modules.find((item) => !item.summary.completed)
+  const nextModule = activeModule?.module ?? modules[0]?.module
+  const completedModules = modules.filter((item) => item.summary.completed).length
   const actionLabel = solved === 0 ? 'Начать обучение' : solved === total ? 'Повторить курс' : 'Продолжить полёт'
 
   return <div className="dashboard-screen">
     <section className="dashboard-hero graph-paper" aria-labelledby="dashboard-title">
       <div className="dashboard-hero__copy">
-        <p className="eyebrow"><span className="pill">5–6 класс</span> Координатная плоскость</p>
+          <p className="eyebrow"><span className="pill">5–6 класс</span> Координатная плоскость</p>
+          <p className="dashboard-hero__welcome" aria-live="polite">{solved === 0 ? 'Привет, курсант! Твоя первая миссия уже готова.' : solved === total ? 'Весь курс пройден — можно закрепить навыки повторением.' : 'С возвращением! Корабль ждёт продолжения маршрута.'}</p>
           <h1 id="dashboard-title" aria-label="Координатная плоскость — целая вселенная!">Координатная<br /><span>плоскость</span> —<br /><em>целая вселенная!</em></h1>
         <p className="dashboard-hero__description">
           Учись читать координаты, находить точки и строить маршруты. Шесть коротких модулей помогут освоить тему шаг за шагом.
@@ -34,6 +37,11 @@ export function DashboardScreen({ modules, onOpenModule }: DashboardScreenProps)
           <a className="text-link" href="#/map">Посмотреть карту курса ↗</a>
         </div>
         <p className="dashboard-hero__note">Без оценок и спешки. Ошибки помогают понять следующий шаг.</p>
+        <div className="dashboard-next-step" aria-label="Твой следующий шаг">
+          <span className="dashboard-next-step__icon" aria-hidden="true">⌖</span>
+          <span><strong>{solved === 0 ? 'Начни с первой миссии' : solved === total ? 'Маршрут завершён' : 'Следующий шаг'}</strong><small>{activeModule ? activeModule.module.title + ' · ' + activeModule.summary.solved + ' из ' + activeModule.summary.total + ' заданий' : 'Все ' + completedModules + ' модулей пройдены'}</small></span>
+          <span className="dashboard-next-step__progress" aria-label={'Пройдено модулей: ' + completedModules + ' из ' + modules.length}>{completedModules}/{modules.length}</span>
+        </div>
       </div>
       <aside className="dashboard-hero__guide" aria-label="Курсантка и помощник Орби">
         <div className="dashboard-hero__orbit" aria-hidden="true">✦ ✧ ·</div>
@@ -67,22 +75,22 @@ export function DashboardScreen({ modules, onOpenModule }: DashboardScreenProps)
     <section className="flight-stats" aria-label="Учебный прогресс">
       <article className="flight-stat flight-stat--lime">
         <span className="flight-stat__icon" aria-hidden="true">✓</span>
-        <p>Заданий решено</p>
+        <p>Заданий решено <span className="flight-stat__help">Сколько задач курса ты выполнил.</span></p>
         <strong>{solved}<small> / {total}</small></strong>
       </article>
       <article className="flight-stat flight-stat--violet">
         <span className="flight-stat__icon" aria-hidden="true">↗</span>
-        <p>Первые ответы</p>
+        <p>Верно с первой попытки <span className="flight-stat__help">Правильные ответы без подсказки.</span></p>
         <strong>{firstCorrect}<small> из {attempted}</small></strong>
       </article>
       <article className="flight-stat flight-stat--coral">
         <span className="flight-stat__icon" aria-hidden="true">↻</span>
-        <p>Попыток</p>
+        <p>Ответов дано <span className="flight-stat__help">Включая повторные попытки.</span></p>
         <strong>{attempts}<small> всего</small></strong>
       </article>
       <article className="flight-stat">
         <span className="flight-stat__icon" aria-hidden="true">✧</span>
-        <p>Подсказки</p>
+        <p>Подсказки использованы <span className="flight-stat__help">В скольких заданиях пригодилась подсказка.</span></p>
         <strong>{hints}<small> заданий с подсказкой</small></strong>
       </article>
     </section>

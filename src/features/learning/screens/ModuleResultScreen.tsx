@@ -22,6 +22,7 @@ export function ModuleResultScreen({
     <div className="module-result__confetti" aria-hidden="true">✦ ✧ ✦</div>
     <p className="eyebrow">Бортовой журнал · модуль {moduleNumber}</p>
     <h1 id="result-title">Модуль завершён!</h1>
+    <div className="module-result__badge" role="status"><span aria-hidden="true">✦</span><span><strong>Значок открыт: {view.module.title}</strong><small>Новый сектор появился на твоей карте знаний.</small></span></div>
     <p className="module-result__intro">{view.module.title} — важный шаг на карте координат. Ты можешь повторить задания или перейти к следующему уроку.</p>
     <OrbiCompanion state="success" />
 
