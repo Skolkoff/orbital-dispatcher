@@ -1,5 +1,6 @@
 import { CadetGuide } from '../../components/CadetGuide'
 import { OrbiCompanion } from '../../components/OrbiCompanion'
+import { Spacecraft } from '../game/components/Spacecraft'
 import type { ModuleProgressView } from '../learning/progressView'
 import { MissionMap } from './MissionMap'
 
@@ -40,6 +41,27 @@ export function DashboardScreen({ modules, onOpenModule }: DashboardScreenProps)
         <OrbiCompanion state="idle" />
         <span className="dashboard-hero__sticker">Курс на знания!</span>
       </aside>
+    </section>
+
+    <section className="mission-launch" aria-labelledby="mission-launch-title">
+      <div className="mission-launch__copy">
+        <p className="eyebrow">Свободная миссия · тренажёр</p>
+        <h2 id="mission-launch-title">Прокладывай курс среди астероидов</h2>
+        <p>Расставь маршрут по координатам, проверь его в полёте и найди безопасный путь. Можно пробовать снова — прогресс курса не потеряется.</p>
+        <div className="mission-launch__details" aria-label="Чему учит миссия">
+          <span>Соседние точки</span><span>Оси X и Y</span><span>Планирование маршрута</span>
+        </div>
+        <a className="button button-dark" href="#/game"><span aria-hidden="true">↗</span> Проложить маршрут <span aria-hidden="true">→</span></a>
+      </div>
+      <svg className="mission-launch__art" viewBox="0 0 240 170" aria-hidden="true">
+        <path className="mission-launch__orbit mission-launch__orbit--outer" d="M18 119 C45 31 172 13 218 75 C240 104 201 145 151 148" />
+        <path className="mission-launch__route" d="M28 126 H83 V92 H139 V53 H198" />
+        <circle className="mission-launch__start" cx="28" cy="126" r="8" />
+        <circle className="mission-launch__goal" cx="198" cy="53" r="10" />
+        <circle className="mission-launch__obstacle" cx="83" cy="67" r="8" />
+        <g transform="translate(139 53)"><Spacecraft direction={90} /></g>
+        <text x="20" y="151">(−4; −2)</text><text x="173" y="35">цель</text>
+      </svg>
     </section>
 
     <section className="flight-stats" aria-label="Учебный прогресс">

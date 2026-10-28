@@ -1,5 +1,5 @@
-export type NavigationPage = 'dashboard' | 'map' | 'skills' | 'lesson' | 'practice' | 'result'
-type MainNavigationPage = 'dashboard' | 'map' | 'skills'
+export type NavigationPage = 'dashboard' | 'game' | 'map' | 'skills' | 'lesson' | 'practice' | 'result'
+type MainNavigationPage = 'dashboard' | 'game' | 'map' | 'skills'
 
 function activePage(page: NavigationPage): MainNavigationPage {
   if (page === 'lesson' || page === 'practice' || page === 'result') return 'map'
@@ -11,6 +11,9 @@ export function NavigationLinks({ page }: { page: NavigationPage }) {
   return <>
     <a href="#/dashboard" aria-current={active === 'dashboard' ? 'page' : undefined}>
       <span aria-hidden="true">⌂</span> Центр полётов
+    </a>
+    <a href="#/game" aria-current={active === 'game' ? 'page' : undefined}>
+      <span aria-hidden="true">▶</span> Играть
     </a>
     <a href="#/map" aria-current={active === 'map' ? 'page' : undefined}>
       <span aria-hidden="true">◎</span> Карта курса

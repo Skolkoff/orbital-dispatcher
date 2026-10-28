@@ -29,6 +29,12 @@ it('introduces the course and leaves later modules locked until the previous one
   expect(screen.getAllByText('Заблокировано')).toHaveLength(5)
 })
 
+it('offers a separate coordinate route challenge from the home screen', () => {
+  render(<DashboardScreen modules={moduleViews()} onOpenModule={() => {}} />)
+
+  expect(screen.getByRole('link', { name: 'Проложить маршрут' }).getAttribute('href')).toBe('#/game')
+})
+
 it('unlocks the next module and lets the learner revisit a completed one', async () => {
   const user = userEvent.setup()
   const onOpenModule = vi.fn()

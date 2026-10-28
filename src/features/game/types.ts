@@ -7,3 +7,5 @@ export type MissionMap = {
   goal: GridPoint
   obstacles: GridPoint[]
 }
+
+export type MissionPhase = 'planning' | 'flying' | 'collision' | 'won'

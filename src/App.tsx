@@ -11,12 +11,15 @@ import { LessonScreen } from './features/learning/screens/LessonScreen'
 import { ModuleResultScreen } from './features/learning/screens/ModuleResultScreen'
 import { PracticeScreen } from './features/learning/screens/PracticeScreen'
 import { SkillsScreen } from './features/learning/screens/SkillsScreen'
+import { GameScreen } from './features/game/screens/GameScreen'
 import { learningProgressService } from './features/progress/LearningProgressService'
 import type { LearningProgress } from './features/progress/LearningProgressService'
 import type { ExerciseAnswer } from './features/learning/types'
 
 type AppRoute =
   | { page: 'dashboard' }
+  | { page: 'game' }
+  | { page: 'notFound' }
   | { page: 'map' }
   | { page: 'skills' }
   | { page: 'lesson' | 'practice' | 'result'; moduleId: string; exerciseId?: string }
@@ -24,7 +27,9 @@ type AppRoute =
 
 function readRoute(): AppRoute {
   const path = window.location.hash.replace(/^#\/?/, '')
+  if (!path) return { page: 'dashboard' }
   if (path === 'map') return { page: 'map' }
+  if (path === 'game') return { page: 'game' }
   if (path === 'skills') return { page: 'skills' }
   const lesson = /^module\/([^/]+)\/lesson$/.exec(path)
   if (lesson) return { page: 'lesson', moduleId: lesson[1] }
@@ -34,7 +39,7 @@ function readRoute(): AppRoute {
   if (result) return { page: 'result', moduleId: result[1] }
   const review = /^review\/([^/]+)$/.exec(path)
   if (review) return { page: 'review', exerciseId: review[1] }
-  return { page: 'dashboard' }
+  return { page: 'notFound' }
 }
 
 function newSessionId() {
@@ -155,6 +160,8 @@ export default function App() {
   let content: ReactNode
   if (route.page === 'dashboard') {
     content = <DashboardScreen modules={moduleProgress} onOpenModule={openModule} />
+  } else if (route.page === 'game') {
+    content = <GameScreen />
   } else if (route.page === 'map') {
     content = <div className="map-screen">
       <header className="map-screen__heading">
@@ -237,6 +244,6 @@ export default function App() {
     content = <RouteNotice title="Страница не найдена">Выбери раздел из навигации и продолжи полёт по курсу.</RouteNotice>
   }
 
-  const shellPage = route.page === 'review' ? 'practice' : route.page
+  const shellPage = route.page === 'review' ? 'practice' : route.page === 'notFound' ? 'dashboard' : route.page
   return <AppShell page={shellPage}>{content}</AppShell>
 }
