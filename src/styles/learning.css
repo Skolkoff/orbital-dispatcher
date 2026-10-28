@@ -207,6 +207,7 @@
 .skill-card__main { min-width: 0; }
 .skill-card__main h2 { margin-top: 3px; font-family: var(--font-display); font-size: 1.05rem; }
 .skill-card__main > p:not(.eyebrow) { margin-top: 6px; color: var(--ink-muted); font-size: .78rem; line-height: 1.45; }
+.skill-card__main > .skill-card__description { margin-top: 9px; color: var(--ink); font-weight: 650; }
 .skill-card__status { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .skill-card__status span { border: 1px solid var(--ink); border-radius: 999px; padding: 4px 7px; background: var(--paper); font-size: .61rem; font-weight: 700; }
 .skill-card__action { grid-column: 2; align-self: center; }

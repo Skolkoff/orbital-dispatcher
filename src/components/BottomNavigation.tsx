@@ -16,7 +16,7 @@ export function NavigationLinks({ page }: { page: NavigationPage }) {
       <span aria-hidden="true">◎</span> Карта курса
     </a>
     <a href="#/skills" aria-current={active === 'skills' ? 'page' : undefined}>
-      <span aria-hidden="true">✦</span> Навыки
+      <span aria-hidden="true">✦</span> Мой прогресс
     </a>
   </>
 }

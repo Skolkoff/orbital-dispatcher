@@ -26,6 +26,12 @@ afterEach(() => {
 })
 
 describe('learning course navigation and practice', () => {
+  it('names the knowledge section as learner progress', () => {
+    render(<App />)
+
+    expect(screen.getAllByRole('link', { name: 'Мой прогресс' }).length).toBeGreaterThan(0)
+  })
+
   it('does not allow a direct link to skip a locked module', () => {
     window.location.hash = '#/module/module-2/lesson'
     render(<App />)
