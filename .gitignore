@@ -12,6 +12,7 @@ coverage/
 # Generated references and planning artifacts; keep them local only.
 stitch_web_app/
 docs/superpowers/
+.superpowers/
 
 # Laravel dependencies and generated SPA build.
 /server/vendor/
