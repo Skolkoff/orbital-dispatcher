@@ -9,7 +9,7 @@ npm ci
 npm run dev -- --host 0.0.0.0
 ```
 
-Visit [http://localhost:5173](http://localhost:5173). Vite uses a strict port and exits if 5173 is busy. The host option makes the server available to other devices on your local network for responsive checks. Use `npm run dev` for the default local-only binding.
+Visit [http://localhost:5173](http://localhost:5173). Vite uses a strict port and exits if 5173 is busy. The host option makes the server available to other devices on your local network for responsive checks. Use `npm run dev` for the default local-only binding. No Docker service or backend is needed for this frontend phase.
 
 ## Commands
 
@@ -33,8 +33,8 @@ For local security tooling on macOS, install Gitleaks with `brew install gitleak
 
 ## Project conventions
 
-React renders the minimal entry in `src/main.tsx`. `index.html` sets Russian as the page language. Vite handles the development server and static production bundle; TypeScript checks app files and tool configuration separately. Keep UI text in Russian and preserve keyboard/touch usability as screens are added.
+React renders the app from `src/main.tsx`. The typed curriculum lives in `src/features/learning/data/course.ts`, and `checkAnswer` contains the pure answer validation for all six exercise modes. Lesson, practice, result, dashboard, map, and skills screens are separate components. `LearningProgressService` validates and migrates the local browser record under `orbital-dispatcher.learning-progress.v2`. `index.html` sets Russian as the page language and loads the typefaces. Vite handles the development server and static production bundle; TypeScript checks app files and tool configuration separately. Keep UI text in Russian and preserve keyboard/touch usability as screens are added.
 
-Use mock data and completed mission IDs for local demos. Do not add credentials, passwords, account records, or personal data. Frontend environment variables are public to the browser and must never contain secrets. No environment file is needed for this foundation.
+Progress is local to the browser and is not an account or a security boundary. Do not add credentials, passwords, account records, or personal data. Frontend environment variables are public to the browser and must never contain secrets. No environment file is needed for this foundation. Preserve hash routes for refreshable static hosting and keep course data independent from screen components.
 
-Commit application source, the npm lockfile, root README, and public documentation under `Docs/`. Keep `node_modules/`, `dist/`, environment files, local design exports in `stitch_web_app/`, and local planning documents in `docs/superpowers/` out of Git. Deployment and server setup are deferred; local development uses ordinary npm commands without Docker.
+Commit application source, the npm lockfile, root README, public documentation under `Docs/`, and the local brand assets under `public/assets/`. Keep `node_modules/`, `dist/`, environment files, local design exports in `stitch_web_app/`, and local planning/agent records in `.superpowers/` out of Git. GitHub Actions checks the `product` branch; deployment and server setup remain a separate later decision. Local development uses ordinary npm commands.

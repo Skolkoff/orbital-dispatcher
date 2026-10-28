@@ -1,6 +1,8 @@
 # Орбитальный диспетчер
 
-«Орбитальный диспетчер» — учебный тренажёр по координатной плоскости для учеников 5–6 классов. Пять игровых миссий постепенно знакомят с координатами, маршрутами, отрицательными числами, симметрией и перемещениями.
+«Орбитальный диспетчер» — учебный тренажёр по координатной плоскости для учеников 5–6 классов. Шесть модулей и 30 заданий ведут от устройства сетки и упорядоченных пар к отрицательным координатам, маршрутам и построению фигур. Перед практикой ученик читает короткий урок с правилом, примером и вопросом для самопроверки.
+
+Задания чередуют выбор ответа, построение точки, ввод координат, число, маршрут и фигуру. После ошибки тренажёр объясняет следующий шаг и предлагает подсказки. Успешные решения, самостоятельность первых ответов и использование подсказок сохраняются в этом браузере.
 
 ## Local quick start
 
@@ -11,7 +13,7 @@ npm ci
 npm run dev -- --host 0.0.0.0
 ```
 
-Open [http://localhost:5173](http://localhost:5173). Port 5173 is fixed: stop the other process if it is already occupied. Docker and credentials are not required.
+Open [http://localhost:5173](http://localhost:5173). Port 5173 is fixed: stop the other process if it is already occupied. Docker, credentials, and a backend are not required. Hash-based routes keep direct links and refreshes working on ordinary static hosting.
 
 ```sh
 npm run lint
@@ -35,4 +37,4 @@ npm run build
 
 Security scans require Gitleaks and Semgrep on `PATH`; see [Security](Docs/SECURITY.md). GitHub Actions runs the same unit, browser, dependency, secret, and static-analysis checks for changes to `product`.
 
-See [product overview](Docs/OVERVIEW.md), [development workflow](Docs/DEVELOPMENT.md), and [security](Docs/SECURITY.md). Progress is stored in this browser only; this frontend has no account or password flow. Do not enter real personal data.
+See the [product overview](Docs/OVERVIEW.md), [learning plan](Docs/LEARNING-PLAN.md), [development workflow](Docs/DEVELOPMENT.md), and [security notes](Docs/SECURITY.md). Progress is stored in this browser only; this frontend has no account or password flow. Do not enter real personal data.

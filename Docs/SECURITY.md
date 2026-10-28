@@ -1,6 +1,6 @@
 # Security checks
 
-This repository is currently a frontend-only learning demo. It has no user accounts, passwords, authentication cookies, or server-side learner records. The browser stores only completed mission IDs in localStorage. Browser storage can be edited by its owner and is not an authentication or authorization boundary.
+This repository is currently a frontend-only learning demo. It has no user accounts, passwords, authentication cookies, or server-side learner records. The browser stores versioned exercise completion and learning evidence in localStorage. Browser storage can be edited by its owner and is not an authentication or authorization boundary. Legacy completed mission IDs are preserved as history only and do not count as mastery.
 
 ## Local checks
 
@@ -18,7 +18,7 @@ The command runs:
 
 Individual commands are available as `npm run security:audit`, `npm run security:secrets`, and `npm run security:static`. On macOS, install the tools with `brew install gitleaks semgrep`; on other systems, use the tools' official installation instructions.
 
-The test suite also checks that mission input is validated, wrong answers do not unlock content, direct links cannot bypass the mission order, and feedback is rendered as text. Playwright covers retry, completion, progress after reload, keyboard selection, a touch tap on the graph, and 360 px / 768 px layouts.
+The unit suite checks course data, answer validation, migration, and progress-confidence rules. Playwright covers all six answer modes, feedback and hints, completion and progress after reload, locked direct links, keyboard and touch input, and 360 px / 768 px / 1280 px layouts. These are product behavior checks; browser progress remains editable by the learner and must never authorize protected server data.
 
 ## GitHub Actions
 
