@@ -97,10 +97,20 @@ jobs:
       - run: npm run test:e2e
       - run: npm run build
       - run: npm run test:preview
+      - name: Install production PHP dependencies
+        run: composer install --working-dir=server --no-dev --no-interaction --prefer-dist --optimize-autoloader
+      - name: Package Laravel application
+        run: tar -czf /tmp/orbital-dispatcher-release.tar.gz --exclude='./.env' -C server .
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: orbital-dispatcher-production-app
           path: server/public/app/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: orbital-dispatcher-laravel-release
+          path: /tmp/orbital-dispatcher-release.tar.gz
           if-no-files-found: error
           retention-days: 14
 
@@ -127,3 +137,66 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_COMMENTS: 'false'
           GITLEAKS_VERSION: '8.30.1'
+
+  deploy-production:
+    name: Deploy to REG.RU shared hosting
+    if: github.event_name == 'push' && github.ref == 'refs/heads/product' && vars.DEPLOY_ENABLED == 'true'
+    needs: [quality, e2e-and-build, security]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: orbital-dispatcher-laravel-release
+      - name: Configure verified SSH access
+        env:
+          DEPLOY_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          test -n "$DEPLOY_PRIVATE_KEY" || { echo 'Missing DEPLOY_SSH_PRIVATE_KEY secret'; exit 1; }
+          test -n "$DEPLOY_KNOWN_HOSTS" || { echo 'Missing DEPLOY_KNOWN_HOSTS variable'; exit 1; }
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+      - name: Upload release package
+        env:
+          DEPLOY_SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ vars.DEPLOY_SSH_USER }}
+          DEPLOY_SSH_PORT: ${{ vars.DEPLOY_SSH_PORT }}
+        run: |
+          set -eu
+          test -n "$DEPLOY_SSH_HOST" || { echo 'Missing DEPLOY_SSH_HOST variable'; exit 1; }
+          test -n "$DEPLOY_SSH_USER" || { echo 'Missing DEPLOY_SSH_USER variable'; exit 1; }
+          test -n "$DEPLOY_SSH_PORT" || { echo 'Missing DEPLOY_SSH_PORT variable'; exit 1; }
+          scp -i "$HOME/.ssh/id_ed25519" -P "$DEPLOY_SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            orbital-dispatcher-release.tar.gz \
+            "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:apps/orbital-dispatcher/release-$GITHUB_SHA.tar.gz"
+      - name: Install release and run migrations
+        env:
+          DEPLOY_SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ vars.DEPLOY_SSH_USER }}
+          DEPLOY_SSH_PORT: ${{ vars.DEPLOY_SSH_PORT }}
+        run: |
+          set -eu
+          ssh -i "$HOME/.ssh/id_ed25519" -p "$DEPLOY_SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "bash -s -- '$GITHUB_SHA'" <<'REMOTE'
+          set -eu
+          release_sha="$1"
+          app_path="$HOME/apps/orbital-dispatcher"
+          archive="$app_path/release-$release_sha.tar.gz"
+          cd "$app_path"
+          test -f .env || { echo 'Missing production .env; create it outside the public directory before enabling deployment.'; exit 1; }
+          tar -xzf "$archive" -C "$app_path" --no-same-owner
+          rm -f "$archive"
+          mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+          chmod -R u+rwX storage bootstrap/cache
+          /opt/php/8.3/bin/php artisan optimize:clear
+          /opt/php/8.3/bin/php artisan migrate --force
+          REMOTE
