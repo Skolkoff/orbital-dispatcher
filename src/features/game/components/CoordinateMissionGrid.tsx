@@ -56,10 +56,11 @@ export function CoordinateMissionGrid({ map, route, shipPosition, flightState, o
     if (!rect.width || !rect.height) return
     const svgX = (event.clientX - rect.left) / rect.width * 400
     const svgY = (event.clientY - rect.top) / rect.height * 400
-    if (svgX < 56 || svgX > 344 || svgY < 56 || svgY > 344) return
+    const edgeTolerance = 18
+    if (svgX < 56 - edgeTolerance || svgX > 344 + edgeTolerance || svgY < 56 - edgeTolerance || svgY > 344 + edgeTolerance) return
     selectPoint({
-      x: Math.round(map.min + (svgX - 56) / 288 * (map.max - map.min)),
-      y: Math.round(map.max - (svgY - 56) / 288 * (map.max - map.min)),
+      x: Math.min(map.max, Math.max(map.min, Math.round(map.min + (svgX - 56) / 288 * (map.max - map.min)))),
+      y: Math.min(map.max, Math.max(map.min, Math.round(map.max - (svgY - 56) / 288 * (map.max - map.min)))),
     })
     event.currentTarget.focus()
   }

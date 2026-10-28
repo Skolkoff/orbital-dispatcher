@@ -27,7 +27,7 @@ type AppRoute =
 
 function readRoute(): AppRoute {
   const path = window.location.hash.replace(/^#\/?/, '')
-  if (!path) return { page: 'dashboard' }
+  if (!path || path === 'dashboard') return { page: 'dashboard' }
   if (path === 'map') return { page: 'map' }
   if (path === 'game') return { page: 'game' }
   if (path === 'skills') return { page: 'skills' }

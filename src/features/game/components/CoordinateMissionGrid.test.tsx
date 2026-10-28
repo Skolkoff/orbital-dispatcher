@@ -50,6 +50,17 @@ it('selects the nearest coordinate with pointer input and the keyboard cursor', 
   expect(onSelectPoint).toHaveBeenLastCalledWith({ x: 2, y: 0 })
 })
 
+it('keeps edge coordinates selectable when a tap lands a few pixels beyond the grid line', () => {
+  const onSelectPoint = vi.fn()
+  render(<CoordinateMissionGrid map={map} route={[map.start]} shipPosition={map.start} flightState="planning" onSelectPoint={onSelectPoint} />)
+  const board = screen.getByRole('application', { name: /координатная карта маршрута/i })
+  board.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 400, right: 400, bottom: 400, x: 0, y: 0, toJSON() {} })
+
+  fireEvent.pointerDown(board, { clientX: 350, clientY: 50 })
+
+  expect(onSelectPoint).toHaveBeenCalledWith({ x: 4, y: 4 })
+})
+
 it('resets the keyboard cursor and coordinate inputs when a new map is loaded', async () => {
   const user = userEvent.setup()
   const onSelectPoint = vi.fn()
