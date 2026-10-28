@@ -37,6 +37,9 @@ it('explains a wrong answer and allows a retry with a hint', async () => {
   expect(await screen.findByText(/Первая координата/)).toBeTruthy()
   expect(completed).toEqual([])
   expect(screen.getByRole('button', { name: 'Проверить ответ' }).hasAttribute('disabled')).toBe(false)
+  await user.click(screen.getByRole('button', { name: 'Попробовать ещё раз' }))
+  expect(screen.getByText('Точка не выбрана')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Проверить ответ' }).hasAttribute('disabled')).toBe(true)
 })
 it('clears the answer when navigating between missions', async () => {
   const user = userEvent.setup()
