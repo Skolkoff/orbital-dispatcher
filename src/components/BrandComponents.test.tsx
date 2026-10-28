@@ -1,22 +1,23 @@
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { BrandLogo } from './BrandLogo'
 import { CadetGuide } from './CadetGuide'
 import { OrbiCompanion } from './OrbiCompanion'
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.unstubAllEnvs() })
 
 it('uses local logo and cadet artwork with descriptive alternative text', () => {
+  vi.stubEnv('BASE_URL', '/app/')
   render(<>
     <BrandLogo />
     <CadetGuide />
   </>)
 
   const logo = screen.getByRole('img', { name: 'Эмблема тренажёра «Орбитальный диспетчер»' })
-  expect(logo.getAttribute('src')).toBe('/assets/orbital-dispatcher-logo.jpg')
+  expect(logo.getAttribute('src')).toBe('/app/assets/orbital-dispatcher-logo.jpg')
 
   const cadet = screen.getByRole('img', { name: 'Курсантка-наставница в космической форме' })
-  expect(cadet.getAttribute('src')).toBe('/assets/orbital-dispatcher-cadet.jpg')
+  expect(cadet.getAttribute('src')).toBe('/app/assets/orbital-dispatcher-cadet.jpg')
 })
 
 it('announces Orbi’s correction state as accessible text', () => {
