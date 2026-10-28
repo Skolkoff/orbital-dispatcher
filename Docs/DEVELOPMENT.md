@@ -1,40 +1,92 @@
-# Development workflow
+# Development
 
-## Requirements and startup
+## Requirements
 
-Use Node.js 22.13+ within major version 22, with npm. `.nvmrc` selects Node 22 for nvm users. The minimum patch version accommodates the current lint tooling; Vite's Node requirements are documented in its [getting started guide](https://vite.dev/guide/).
+- Node.js 22.13 or newer within the 22.x line, with npm
+- PHP 8.3 or newer with the extensions required by Laravel and PDO MySQL
+- Composer 2
+- MySQL 8.4 (or a compatible MySQL 8 release)
+
+The project uses ordinary local processes; Docker is not required.
+
+## First-time setup
+
+Create a development database and a separate test database in MySQL:
+
+```sql
+CREATE DATABASE orbital_dispatcher CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE orbital_dispatcher_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Install the frontend and configure Laravel:
 
 ```sh
 npm ci
-npm run dev -- --host 0.0.0.0
+cd server
+composer install
+cp .env.example .env
+php artisan key:generate
 ```
 
-Visit [http://localhost:5173](http://localhost:5173). Vite uses a strict port and exits if 5173 is busy. The host option makes the server available to other devices on your local network for responsive checks. Use `npm run dev` for the default local-only binding. No Docker service or backend is needed for this frontend phase.
+Edit `server/.env` with the local MySQL username and password. Keep the development values for the SPA URL and Sanctum stateful domains when using `localhost:5173` and `localhost:8000`; use the same hostname in the browser for both the SPA and API. Then run migrations:
 
-## Commands
+```sh
+php artisan migrate
+```
 
-| Command | Purpose |
-| --- | --- |
-| `npm ci` | Install exactly the committed lockfile; requires registry access on first install. |
-| `npm run dev` | Start Vite with hot reload on port 5173. |
-| `npm run lint` | Run ESLint on project source and configuration; warnings fail. |
-| `npm run typecheck` | Check app and tool configuration TypeScript without emitting files. |
-| `npm run test` | Run the Vitest unit and component suites. |
-| `npx playwright install chromium` | Install the browser used by Playwright (once per machine). |
-| `npm run test:e2e` | Run Playwright end-to-end scenarios; starts Vite automatically if it is not running. |
-| `npm run security:check` | Run npm audit, Gitleaks history scan, and Semgrep static analysis. Requires Gitleaks and Semgrep on `PATH`. |
-| `npm run security:audit` | Check installed npm dependencies against the advisory database. |
-| `npm run security:secrets` | Scan staged changes, working-tree changes, and Git history for secrets with Gitleaks. |
-| `npm run security:static` | Scan app and E2E source with Semgrep JavaScript/TypeScript rules. |
-| `npm run build` | Typecheck and produce a static build in `dist/`. |
-| `npm run preview` | Serve the built `dist/` locally on strict port 4173. |
+The default local mailer writes password-reset messages to `server/storage/logs/laravel.log`. This lets you exercise the reset flow without configuring an email provider.
 
-For local security tooling on macOS, install Gitleaks with `brew install gitleaks` and Semgrep with `brew install semgrep` (or install Semgrep with `uv tool install semgrep`). GitHub Actions installs the scanners in its security job. The Playwright browser is separate from npm dependencies and is installed with the command above.
+## Run the application
+
+Use two terminals from the repository root. In the first:
+
+```sh
+cd server
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+In the second:
+
+```sh
+npm run dev -- --host 127.0.0.1
+```
+
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite proxies `/api` and `/sanctum` to Laravel. If port 5173 or 8000 is occupied, stop the existing process before starting the app.
+
+Anonymous learners can explore lessons and play the orbital route game without an account. Registering creates an account with a call sign and email and imports the anonymous learning-progress snapshot. Signing in restores only that account's server progress. Passwords are hashed by Laravel and are never returned to the browser. Offline progress is queued in browser storage under the signed-in account; it synchronizes when that same account reconnects.
+
+## Checks
+
+Run frontend checks from the repository root:
+
+```sh
+npm run lint
+npm run typecheck
+npm run test
+npm run test:e2e
+npm run build
+npm run test:preview
+npm run security:check
+```
+
+Install Playwright's Chromium browser once with `npx playwright install chromium`. The E2E suite starts the required local servers; keep MySQL and both databases available. Server feature tests use `orbital_dispatcher_test` and reset its tables, so never point that test database at user data.
+
+Run Laravel checks from `server/`:
+
+```sh
+composer audit
+vendor/bin/pint --test
+php artisan test
+```
+
+`npm run build` writes the production SPA assets under `server/public/app/`; Laravel serves the app and API on the same origin in production. `npm run test:preview` verifies the built asset base. For local static preview, run `npm run preview` after the build.
+
+Security scans need Gitleaks and Semgrep installed locally. On macOS, install them with `brew install gitleaks semgrep`. The workflow installs the scanners in GitHub Actions.
 
 ## Project conventions
 
-React renders the app from `src/main.tsx`. The typed curriculum lives in `src/features/learning/data/course.ts`, and `checkAnswer` contains the pure answer validation for all six exercise modes. Lesson, practice, result, dashboard, map, skills, and game screens are separate components. The free-play game rules live in `src/features/game/services/`; its UI and inline spacecraft are isolated from the course answer grid. `LearningProgressService` validates and migrates the local browser record under `orbital-dispatcher.learning-progress.v2`. `index.html` sets Russian as the page language and loads the typefaces. Vite handles the development server and static production bundle; TypeScript checks app files and tool configuration separately. Keep UI text in Russian and preserve keyboard/touch usability as screens are added.
+React renders from `src/main.tsx`; keep user-facing interface text in Russian and preserve keyboard and touch usability. Course data and pure answer validation live in `src/features/learning/data/course.ts`. The account UI and API client are under `src/features/auth/`; progress migration and per-account synchronization are under `src/features/progress/`.
 
-Progress is local to the browser and is not an account or a security boundary. Do not add credentials, passwords, account records, or personal data. Frontend environment variables are public to the browser and must never contain secrets. No environment file is needed for this foundation. Preserve hash routes for refreshable static hosting and keep course data independent from screen components.
+Laravel routes are in `server/routes/`, with auth and progress controllers under `server/app/Http/Controllers/`. Account-owned progress comes from the authenticated Sanctum session only. Do not accept a user id from the client as an authorization source. Add feature tests for authorization, input validation, session/CSRF behavior, and data ownership whenever server behavior changes.
 
-Commit application source, the npm lockfile, root README, public documentation under `Docs/`, and the local brand assets under `public/assets/`. Keep `node_modules/`, `dist/`, environment files, local design exports in `stitch_web_app/`, and local planning/agent records in `.superpowers/` out of Git. GitHub Actions checks the `product` branch; deployment and server setup remain a separate later decision. Local development uses ordinary npm commands.
+Commit app source, `package-lock.json`, the root README, `Docs/`, and brand assets in `public/assets/`. Keep `.env` files, `server/vendor/`, `server/public/app/`, `node_modules/`, and local planning exports out of Git. GitHub Actions runs checks for pull requests and pushes to `product`; production deployment is not enabled until hosting details and secrets are configured.
