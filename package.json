@@ -14,7 +14,10 @@
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "security:check": "npm audit --audit-level=high"
+    "security:audit": "npm audit --audit-level=high",
+    "security:secrets": "gitleaks git --pre-commit --redact --no-banner --exit-code 1 && gitleaks git --staged --redact --no-banner --exit-code 1 && gitleaks git --redact --no-banner --exit-code 1",
+    "security:static": "semgrep scan --config p/javascript --config p/typescript --error --metrics off --no-git-ignore src e2e",
+    "security:check": "npm run security:audit && npm run security:secrets && npm run security:static"
   },
   "dependencies": {
     "react": "^19.3.1",

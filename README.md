@@ -1,6 +1,6 @@
 # Орбитальный диспетчер
 
-Russian-language coordinate-plane trainer for pupils in grades 5–6. This repository currently contains the React + TypeScript + Vite foundation; interactive missions and automated behavior tests come in the next implementation tasks.
+«Орбитальный диспетчер» — учебный тренажёр по координатной плоскости для учеников 5–6 классов. Пять игровых миссий постепенно знакомят с координатами, маршрутами, отрицательными числами, симметрией и перемещениями.
 
 ## Local quick start
 
@@ -22,6 +22,17 @@ npm run preview
 
 The build writes `dist/`; preview serves it at [http://localhost:4173](http://localhost:4173).
 
-`npm run test`, `npm run test:e2e`, and `npm run security:check` provide the Vitest, Playwright, and npm dependency-audit entry points. Test suites will be added in a later task; the test commands currently report no tests rather than a passing suite.
+Install the Playwright browser once with `npx playwright install chromium`, then run the automated checks:
 
-See [product overview](Docs/OVERVIEW.md) and [development workflow](Docs/DEVELOPMENT.md). This frontend uses demo data only; do not enter real account details or personal data.
+```sh
+npm run lint
+npm run typecheck
+npm run test
+npm run test:e2e
+npm run security:check
+npm run build
+```
+
+Security scans require Gitleaks and Semgrep on `PATH`; see [Security](Docs/SECURITY.md). GitHub Actions runs the same unit, browser, dependency, secret, and static-analysis checks for changes to `product`.
+
+See [product overview](Docs/OVERVIEW.md), [development workflow](Docs/DEVELOPMENT.md), and [security](Docs/SECURITY.md). Progress is stored in this browser only; this frontend has no account or password flow. Do not enter real personal data.

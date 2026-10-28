@@ -19,13 +19,17 @@ Visit [http://localhost:5173](http://localhost:5173). Vite uses a strict port an
 | `npm run dev` | Start Vite with hot reload on port 5173. |
 | `npm run lint` | Run ESLint on project source and configuration; warnings fail. |
 | `npm run typecheck` | Check app and tool configuration TypeScript without emitting files. |
-| `npm run test` | Run Vitest once; suites will be added in the testing task. |
-| `npm run test:e2e` | Run Playwright; configuration and browser flows will be added in the testing task. |
-| `npm run security:check` | Run `npm audit --audit-level=high`; requires registry access. |
+| `npm run test` | Run the Vitest unit and component suites. |
+| `npx playwright install chromium` | Install the browser used by Playwright (once per machine). |
+| `npm run test:e2e` | Run Playwright end-to-end scenarios; starts Vite automatically if it is not running. |
+| `npm run security:check` | Run npm audit, Gitleaks history scan, and Semgrep static analysis. Requires Gitleaks and Semgrep on `PATH`. |
+| `npm run security:audit` | Check installed npm dependencies against the advisory database. |
+| `npm run security:secrets` | Scan staged changes, working-tree changes, and Git history for secrets with Gitleaks. |
+| `npm run security:static` | Scan app and E2E source with Semgrep JavaScript/TypeScript rules. |
 | `npm run build` | Typecheck and produce a static build in `dist/`. |
 | `npm run preview` | Serve the built `dist/` locally on strict port 4173. |
 
-The test commands currently have no tests and should not be treated as successful verification. Later work will add test configuration and install the required Playwright browser binaries. The initial security command audits dependencies only; secret and static-analysis scans will be added with the security task.
+For local security tooling on macOS, install Gitleaks with `brew install gitleaks` and Semgrep with `brew install semgrep` (or install Semgrep with `uv tool install semgrep`). GitHub Actions installs the scanners in its security job. The Playwright browser is separate from npm dependencies and is installed with the command above.
 
 ## Project conventions
 

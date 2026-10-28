@@ -39,3 +39,11 @@ it('shows the next mission after a correct answer', () => {
   expect(screen.getByText('Отличная навигация!')).toBeTruthy()
   expect(nextMissionLink.getAttribute('href')).toBe(panelProps.nextMissionHref)
 })
+
+it('renders untrusted feedback as text rather than executable markup', () => {
+  const payload = '<img src=x onerror=alert(1)>'
+  render(<FeedbackPanel {...panelProps} result={{ correct: false, feedback: payload }} />)
+
+  expect(screen.getByText(payload)).toBeTruthy()
+  expect(screen.queryByRole('img')).toBeNull()
+})
