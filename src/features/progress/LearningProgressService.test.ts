@@ -77,11 +77,11 @@ describe('answer evidence', () => {
 
 describe('module summary', () => {
   it('keeps completion independent from confidence', () => {
-    let progress = empty
     for (const id of ['a', 'b', 'c', 'd', 'e']) {
-      progress = learningProgressService.recordAnswer({ exerciseId: id, correct: true, hintSeenBeforeAnswer: false, sessionId: 's1', isReview: false })
+      learningProgressService.recordAnswer({ exerciseId: id, correct: true, hintSeenBeforeAnswer: false, sessionId: 's1', isReview: false })
     }
-    progress = learningProgressService.recordAnswer({ exerciseId: 'a', correct: true, hintSeenBeforeAnswer: false, sessionId: 's2', isReview: true })
+    learningProgressService.recordAnswer({ exerciseId: 'a', correct: true, hintSeenBeforeAnswer: false, sessionId: 's2', isReview: true })
+    const progress = learningProgressService.load()
     expect(learningProgressService.summarizeModule(progress, ['a', 'b', 'c', 'd', 'e'], ['e'])).toEqual({ solved: 5, total: 5, completed: true, firstTryCorrect: 5, confidence: 'confident' })
 
     const withoutTransfer = { ...progress, exerciseResults: { ...progress.exerciseResults, e: { ...progress.exerciseResults.e, firstIndependentCorrect: false } } }
@@ -89,10 +89,10 @@ describe('module summary', () => {
   })
 
   it('requires four independent correct answers, a correct transfer, and a later-session review', () => {
-    let progress = empty
     for (const id of ['a', 'b', 'c', 'd', 'e']) {
-      progress = learningProgressService.recordAnswer({ exerciseId: id, correct: id !== 'd', hintSeenBeforeAnswer: false, sessionId: 's1', isReview: false })
+      learningProgressService.recordAnswer({ exerciseId: id, correct: id !== 'd', hintSeenBeforeAnswer: false, sessionId: 's1', isReview: false })
     }
+    let progress = learningProgressService.load()
     expect(learningProgressService.summarizeModule(progress, ['a', 'b', 'c', 'd', 'e'], ['e']).confidence).toBe('practice')
     progress = learningProgressService.recordAnswer({ exerciseId: 'a', correct: true, hintSeenBeforeAnswer: false, sessionId: 's2', isReview: true })
     expect(learningProgressService.summarizeModule(progress, ['a', 'b', 'c', 'd', 'e'], ['e']).confidence).toBe('confident')

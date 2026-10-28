@@ -1,42 +1,70 @@
-import { MissionMap, missionSummaries } from './MissionMap'
-import type { MissionMapProps } from './MissionMap'
+import { CadetGuide } from '../../components/CadetGuide'
+import { OrbiCompanion } from '../../components/OrbiCompanion'
+import type { ModuleProgressView } from '../learning/progressView'
+import { MissionMap } from './MissionMap'
 
-export function DashboardScreen({ completedMissionIds, onStartMission }: MissionMapProps) {
-  const completedCount = missionSummaries.filter((mission) => completedMissionIds.includes(mission.id)).length
-  const nextMission = missionSummaries.find((mission) => !completedMissionIds.includes(mission.id))
-  return <>
+export type DashboardScreenProps = {
+  modules: ModuleProgressView[]
+  onOpenModule: (moduleId: string) => void
+}
+
+export function DashboardScreen({ modules, onOpenModule }: DashboardScreenProps) {
+  const solved = modules.reduce((total, item) => total + item.summary.solved, 0)
+  const total = modules.reduce((sum, item) => sum + item.summary.total, 0)
+  const attempted = modules.reduce((sum, item) => sum + item.attempted, 0)
+  const firstCorrect = modules.reduce((sum, item) => sum + item.summary.firstTryCorrect, 0)
+  const attempts = modules.reduce((sum, item) => sum + item.attempts, 0)
+  const hints = modules.reduce((sum, item) => sum + item.hintsUsed, 0)
+  const nextModule = modules.find((item) => !item.summary.completed)?.module ?? modules[0]?.module
+  const actionLabel = solved === 0 ? 'Начать обучение' : solved === total ? 'Повторить курс' : 'Продолжить полёт'
+
+  return <div className="dashboard-screen">
     <section className="dashboard-hero graph-paper" aria-labelledby="dashboard-title">
-      <div className="hero-copy">
+      <div className="dashboard-hero__copy">
         <p className="eyebrow"><span className="pill">5–6 класс</span> Координатная плоскость</p>
-        <h1 id="dashboard-title">Координаты?<br /><span>Возьмём</span> <em>курс!</em></h1>
-        <p className="hero-description">Находи точки, прокладывай маршруты и управляй спутниками. Пять космических миссий помогут разобраться с координатами.</p>
-        <div className="hero-actions">
-          <button className="button button-dark" onClick={() => onStartMission((nextMission ?? missionSummaries[0]).id)}>
-            <span aria-hidden="true">↗</span> {nextMission ? completedCount ? 'Продолжить полёт' : 'Начать первую миссию' : 'Повторить полёт'} <span aria-hidden="true">→</span>
+          <h1 id="dashboard-title" aria-label="Координатная плоскость — целая вселенная!">Координатная<br /><span>плоскость</span> —<br /><em>целая вселенная!</em></h1>
+        <p className="dashboard-hero__description">
+          Учись читать координаты, находить точки и строить маршруты. Шесть коротких модулей помогут освоить тему шаг за шагом.
+        </p>
+        <div className="dashboard-hero__actions">
+          <button className="button button-dark" onClick={() => nextModule && onOpenModule(nextModule.id)}>
+            <span aria-hidden="true">✦</span> {actionLabel}<span aria-hidden="true">→</span>
           </button>
-          <a className="text-link" href="#/map">Карта миссий ↗</a>
+          <a className="text-link" href="#/map">Посмотреть карту курса ↗</a>
         </div>
-        <p className="hero-note">Без оценок и спешки. Ошибки помогают учиться.</p>
+        <p className="dashboard-hero__note">Без оценок и спешки. Ошибки помогают понять следующий шаг.</p>
       </div>
-      <aside className="flight-assistant" aria-label="Совет спутника Орби">
-        <div className="assistant-top"><span className="eyebrow">● На связи с ЦУП</span><span aria-hidden="true">✧</span></div>
-        <div className="assistant-message">«Привет, курсант! Запомни: сначала <strong>X</strong> — по горизонтали, затем <strong>Y</strong> — по вертикали. Полетели?»</div>
-        <div className="assistant-identity"><span className="orbi" aria-hidden="true">☻</span><div><strong>Спутник Орби</strong><small>Твой помощник в полёте</small></div></div>
+      <aside className="dashboard-hero__guide" aria-label="Курсантка и помощник Орби">
+        <div className="dashboard-hero__orbit" aria-hidden="true">✦ ✧ ·</div>
+        <CadetGuide className="dashboard-hero__portrait" />
+        <OrbiCompanion state="idle" />
+        <span className="dashboard-hero__sticker">Курс на знания!</span>
       </aside>
     </section>
-    <div className="dashboard-columns">
-      <MissionMap completedMissionIds={completedMissionIds} onStartMission={onStartMission} />
-      <aside className="dashboard-sidebar">
-        <section className="panel progress-panel" aria-labelledby="progress-title">
-          <p className="eyebrow">Бортовой журнал</p><h2 id="progress-title">Твой прогресс</h2>
-          <p className="progress-number">{completedCount}<span> / 5</span></p>
-          <label htmlFor="mission-progress">Миссий пройдено</label>
-          <progress id="mission-progress" value={completedCount} max={5}>{completedCount} из 5</progress>
-          <p>{nextMission ? `Следующая цель: «${nextMission.title}».` : 'Все миссии пройдены! Можно повторить любую.'}</p>
-          <span className="pill pill-lime">Каждый шаг — новое открытие</span>
-        </section>
-        <section className="panel navigator-note" aria-labelledby="navigator-title"><p className="eyebrow">Памятка штурмана</p><h2 id="navigator-title">У каждой точки — свой адрес</h2><p>Первое число показывает шаги по оси X, второе — по оси Y.</p><div className="coordinate-example">A ( <strong>X</strong> ; <em>Y</em> )</div></section>
-      </aside>
-    </div>
-  </>
+
+    <section className="flight-stats" aria-label="Учебный прогресс">
+      <article className="flight-stat flight-stat--lime">
+        <span className="flight-stat__icon" aria-hidden="true">✓</span>
+        <p>Заданий решено</p>
+        <strong>{solved}<small> / {total}</small></strong>
+      </article>
+      <article className="flight-stat flight-stat--violet">
+        <span className="flight-stat__icon" aria-hidden="true">↗</span>
+        <p>Первые ответы</p>
+        <strong>{firstCorrect}<small> из {attempted}</small></strong>
+      </article>
+      <article className="flight-stat flight-stat--coral">
+        <span className="flight-stat__icon" aria-hidden="true">↻</span>
+        <p>Попыток</p>
+        <strong>{attempts}<small> всего</small></strong>
+      </article>
+      <article className="flight-stat">
+        <span className="flight-stat__icon" aria-hidden="true">✧</span>
+        <p>Подсказки</p>
+        <strong>{hints}<small> заданий с подсказкой</small></strong>
+      </article>
+    </section>
+
+    <MissionMap modules={modules} onOpenModule={onOpenModule} />
+  </div>
 }
