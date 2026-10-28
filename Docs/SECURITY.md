@@ -18,7 +18,7 @@ The command runs:
 
 Individual commands are available as `npm run security:audit`, `npm run security:secrets`, and `npm run security:static`. On macOS, install the tools with `brew install gitleaks semgrep`; on other systems, use the tools' official installation instructions.
 
-The unit suite checks course data, answer validation, migration, and progress-confidence rules. Playwright covers all six answer modes, feedback and hints, completion and progress after reload, locked direct links, keyboard and touch input, and 360 px / 768 px / 1280 px layouts. These are product behavior checks; browser progress remains editable by the learner and must never authorize protected server data.
+The unit suite checks course data, answer validation, migration, and progress-confidence rules. Playwright covers all six answer modes, feedback and hints, completion and progress after reload, locked direct links, the random game route/collision/correction/score/reset flow, keyboard and touch input, reduced motion, and 360 px / 768 px / 1280 px layouts. These are product behavior checks; browser progress remains editable by the learner and must never authorize protected server data.
 
 ## GitHub Actions
 
