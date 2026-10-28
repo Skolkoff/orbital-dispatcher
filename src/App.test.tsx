@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { authApi, ApiError } from './features/auth/api/authApi'
 import { courseModules } from './features/learning/data/course'
 import { learningProgressService, LEARNING_PROGRESS_STORAGE_KEY } from './features/progress/LearningProgressService'
 
-it('introduces the coordinate trainer and lists all six ordered modules', () => {
-  render(<App />)
+it('introduces the coordinate trainer and lists all six ordered modules', async () => {
+  await act(async () => { render(<App />) })
 
   expect(screen.getByRole('heading', { name: /координатная плоскость/i })).toBeTruthy()
   for (const module of courseModules) expect(screen.getAllByText(module.title).length).toBeGreaterThan(0)
@@ -14,6 +15,7 @@ it('introduces the coordinate trainer and lists all six ordered modules', () => 
 
 beforeEach(() => {
   localStorage.clear()
+  vi.spyOn(authApi, 'user').mockRejectedValue(new ApiError(401))
   window.location.hash = '#/dashboard'
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
 })
@@ -26,24 +28,24 @@ afterEach(() => {
 })
 
 describe('learning course navigation and practice', () => {
-  it('names the knowledge section as learner progress', () => {
-    render(<App />)
+  it('names the knowledge section as learner progress', async () => {
+    await act(async () => { render(<App />) })
 
     expect(screen.getAllByRole('link', { name: 'Мой прогресс' }).length).toBeGreaterThan(0)
   })
 
-  it('does not allow a direct link to skip a locked module', () => {
+  it('does not allow a direct link to skip a locked module', async () => {
     window.location.hash = '#/module/module-2/lesson'
-    render(<App />)
+    await act(async () => { render(<App />) })
 
     expect(screen.getByRole('heading', { name: /сначала пройди предыдущий модуль/i })).toBeTruthy()
     expect(screen.getByRole('link', { name: /к карте курса/i }).getAttribute('href')).toBe('#/map')
   })
 
-  it('shows a focused rule, a worked example, and a recall prompt before practice', () => {
+  it('shows a focused rule, a worked example, and a recall prompt before practice', async () => {
     const lesson = courseModules[0].lesson
     window.location.hash = '#/module/module-1/lesson'
-    render(<App />)
+    await act(async () => { render(<App />) })
 
     expect(screen.getByText(lesson.rule)).toBeTruthy()
     expect(screen.getByText(lesson.workedExample)).toBeTruthy()
@@ -60,7 +62,7 @@ describe('learning course navigation and practice', () => {
     if (!wrongOption || !correctOption) throw new Error('The first choice exercise needs correct and incorrect options')
 
     window.location.hash = '#/module/module-1/lesson'
-    render(<App />)
+    await act(async () => { render(<App />) })
 
     await user.click(screen.getByRole('button', { name: /начать практику/i }))
     expect(screen.getByText(firstExercise.prompt)).toBeTruthy()
@@ -88,7 +90,7 @@ describe('learning course navigation and practice', () => {
     expect(screen.getByRole('button', { name: /следующее задание/i })).toBeTruthy()
   })
 
-  it('shows a completed module result and unlocks its successor', () => {
+  it('shows a completed module result and unlocks its successor', async () => {
     for (const exercise of courseModules[0].exercises) {
       learningProgressService.recordAnswer({
         exerciseId: exercise.id,
@@ -99,13 +101,13 @@ describe('learning course navigation and practice', () => {
       })
     }
     window.location.hash = '#/module/module-1/result'
-    render(<App />)
+    await act(async () => { render(<App />) })
 
     expect(screen.getByRole('heading', { name: /модуль завершён/i })).toBeTruthy()
     expect(screen.getByRole('link', { name: /к уроку 2/i }).getAttribute('href')).toBe('#/module/module-2/lesson')
   })
 
-  it('shows the current module number in the lesson progress stamp', () => {
+  it('shows the current module number in the lesson progress stamp', async () => {
     for (const module of courseModules.slice(0, 5)) {
       for (const exercise of module.exercises) {
         learningProgressService.recordAnswer({
@@ -118,7 +120,7 @@ describe('learning course navigation and practice', () => {
       }
     }
     window.location.hash = '#/module/module-6/lesson'
-    render(<App />)
+    await act(async () => { render(<App />) })
 
     expect(screen.getByText('06 / 06')).toBeTruthy()
   })

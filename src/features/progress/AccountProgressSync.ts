@@ -1,4 +1,4 @@
-import { emptyProgress, learningProgressService, readAccountProgress, writeAccountProgress } from './LearningProgressService'
+import { emptyProgress, learningProgressService, readAccountProgress, writeAccountProgress, outboxEntries, acknowledgeOutbox, parseProgress } from './LearningProgressService'
 import type { LearningProgress } from './LearningProgressService'
 
 export type SyncStatus = 'local' | 'loading' | 'syncing' | 'synced' | 'pending' | 'expired'
@@ -7,24 +7,8 @@ export const syncLabels: Record<SyncStatus, string> = {
   synced: 'Прогресс синхронизирован', pending: 'Прогресс на устройстве · ждёт отправки', expired: 'Войди снова для синхронизации',
 }
 
-// Mirror the server's monotonic evidence merge; missing fields never erase earned evidence.
-export function mergeProgress(base: LearningProgress, incoming: LearningProgress): LearningProgress {
-  const results = { ...base.exerciseResults }
-  for (const [id, next] of Object.entries(incoming.exerciseResults)) {
-    const prior = results[id]
-    results[id] = prior ? {
-      solved: prior.solved || next.solved,
-      attempts: Math.max(prior.attempts, next.attempts),
-      hintUsed: prior.hintUsed || next.hintUsed,
-      firstIndependentCorrect: prior.firstIndependentCorrect ?? next.firstIndependentCorrect,
-      firstSessionId: prior.firstSessionId ?? next.firstSessionId,
-      reviewFirstTryCorrect: prior.reviewFirstTryCorrect ?? next.reviewFirstTryCorrect,
-      reviewSessionId: prior.reviewSessionId ?? next.reviewSessionId,
-      lastPracticedAt: [prior.lastPracticedAt, next.lastPracticedAt].filter((value): value is string => value !== null).sort((a, b) => Date.parse(a) - Date.parse(b)).at(-1) ?? null,
-    } : next
-  }
-  return { version: 2, legacyCompletedMissionIds: [...new Set([...base.legacyCompletedMissionIds, ...incoming.legacyCompletedMissionIds])], exerciseResults: results }
-}
+import { mergeProgress } from './mergeProgress'
+export { mergeProgress } from './mergeProgress'
 
 export type ProgressRequestScope = { ownerId: number; signal: AbortSignal }
 type Transport = { load: (scope: ProgressRequestScope) => Promise<LearningProgress>; save: (value: LearningProgress, scope: ProgressRequestScope) => Promise<LearningProgress> }
@@ -66,7 +50,6 @@ export class AccountProgressSync {
     this.unsubscribe = learningProgressService.subscribe(() => {
       if (this.applying || this.userId !== id) return
       this.pending = learningProgressService.load()
-      writeAccountProgress(id, 'outbox', this.pending)
       void this.flush()
     })
     if (this.pending) await this.flush()
@@ -81,15 +64,20 @@ export class AccountProgressSync {
     if (id === null || !controller || !this.pending) return Promise.resolve()
     this.running = (async () => {
       while (this.pending && this.userId === id && generation === this.generation) {
-        const snapshot = this.pending
+        const entries = outboxEntries(id)
+        const pendingAtStart = this.pending
+        const snapshot = entries.reduce((value, [, raw]) => {
+          const record = parseProgress(raw)
+          return record ? mergeProgress(value, record) : value
+        }, pendingAtStart)
         this.onStatus('syncing')
         try {
           const saved = await this.transport.save(snapshot, { ownerId: id, signal: controller.signal })
           if (this.userId !== id || generation !== this.generation) return
-          const changed = this.pending !== snapshot
+          const changed = this.pending !== pendingAtStart
           const merged = mergeProgress(saved, learningProgressService.load())
           this.pending = changed ? merged : null
-          writeAccountProgress(id, 'outbox', this.pending)
+          acknowledgeOutbox(entries)
           this.applying = true
           learningProgressService.useAccount(id, merged)
           this.applying = false

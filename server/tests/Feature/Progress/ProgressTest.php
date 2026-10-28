@@ -196,6 +196,24 @@ class ProgressTest extends TestCase
         $this->assertDatabaseCount('learning_progress', 1);
     }
 
+    public function test_merged_entry_overflow_rolls_back_the_stored_snapshot(): void
+    {
+        foreach (['legacyCompletedMissionIds', 'exerciseResults'] as $field) {
+            $this->actingAs(User::factory()->create());
+            $first = $this->snapshot();
+            $second = $this->snapshot();
+            $ids = fn (int $start): array => array_map(fn (int $i): string => 'entry-'.$i, range($start, $start + 599));
+            $first[$field] = $field === 'exerciseResults'
+                ? array_fill_keys($ids(1), $first['exerciseResults']['coordinates-exercise-1']) : $ids(1);
+            $second[$field] = $field === 'exerciseResults'
+                ? array_fill_keys($ids(601), $second['exerciseResults']['coordinates-exercise-1']) : $ids(601);
+            $this->putJson('/api/progress', $first)->assertOk();
+            $this->putJson('/api/progress', $second)->assertUnprocessable()->assertJsonValidationErrors('document');
+            $this->getJson('/api/progress')->assertOk()->assertExactJson($first);
+        }
+        $this->assertDatabaseCount('learning_progress', 2);
+    }
+
     public function test_failed_import_rolls_back_account_creation(): void
     {
         LearningProgress::creating(function (): void {

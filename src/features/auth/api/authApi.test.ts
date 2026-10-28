@@ -33,11 +33,12 @@ it('sends deletion password as JSON and accepts an empty 204 response', async ()
   vi.stubGlobal('fetch', vi.fn(async (path: string, options?: RequestInit) => {
     if (path === '/api/user') {
       expect(options?.method).toBe('DELETE')
+      expect(options?.headers).toMatchObject({ 'X-Progress-Owner': '1' })
       expect(options?.body).toBe('{"password":"delete-pass"}')
     }
     return new Response(null, { status: 204 })
   }))
-  await expect(authApi.deleteAccount('delete-pass')).resolves.toBeUndefined()
+  await expect(authApi.deleteAccount('delete-pass', { ownerId: 1, signal: new AbortController().signal })).resolves.toBeUndefined()
 })
 
 it('pins progress requests to the expected authenticated owner without changing the bare document', async () => {
@@ -52,3 +53,22 @@ it('pins progress requests to the expected authenticated owner without changing 
   await authApi.loadProgress(scope)
   await authApi.saveProgress(progress, scope)
 })
+
+for (const action of ['delete', 'logout'] as const) {
+  it(`cancels ${action} while CSRF is deferred after the displayed session changes`, async () => {
+    let release!: (response: Response) => void
+    let mutations = 0
+    vi.stubGlobal('fetch', vi.fn(async (path: string) => {
+      if (path === '/sanctum/csrf-cookie') return new Promise<Response>((resolve) => { release = resolve })
+      mutations++
+      return new Response(null, { status: 204 })
+    }))
+    const controller = new AbortController()
+    const scope = { ownerId: 7, signal: controller.signal }
+    const pending = action === 'delete' ? authApi.deleteAccount('test-password', scope) : authApi.logout(scope)
+    controller.abort()
+    release(new Response(null, { status: 204 }))
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(mutations).toBe(0)
+  })
+}

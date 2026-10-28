@@ -34,7 +34,7 @@ Edit `server/.env` with the local MySQL username and password. Keep the developm
 php artisan migrate
 ```
 
-The default local mailer writes password-reset messages to `server/storage/logs/laravel.log`. This lets you exercise the reset flow without configuring an email provider.
+The default local `array` mailer discards messages without logging reset tokens. To manually receive reset links, configure `MAIL_MAILER=smtp` with a local SMTP inbox and its host/port settings. Never log reset messages or tokens.
 
 ## Run the application
 

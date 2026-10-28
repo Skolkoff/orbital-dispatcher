@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../../App'
-import { learningProgressService, LEARNING_PROGRESS_STORAGE_KEY } from '../progress/LearningProgressService'
+import { learningProgressService, LEARNING_PROGRESS_STORAGE_KEY, readAccountProgress } from '../progress/LearningProgressService'
 
 beforeEach(() => { vi.spyOn(window, 'scrollTo').mockImplementation(() => {}) })
 afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); vi.restoreAllMocks(); window.location.hash = '' })
 function api(handler: (path: string, init?: RequestInit) => Promise<Response> | Response) {
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
     if (path === '/sanctum/csrf-cookie') return new Response(null, { status: 204 })
-    if (path === '/api/user' && !init?.method) return new Response(null, { status: 401 })
+    if (path === '/api/user' && (!init?.method || init.method === 'GET')) return new Response(null, { status: 401 })
     if (path === '/api/progress') return Response.json({ version: 2, legacyCompletedMissionIds: [], exerciseResults: {} })
     return handler(path, init)
   }))
@@ -18,7 +18,7 @@ function api(handler: (path: string, init?: RequestInit) => Promise<Response> | 
 it('offers anonymous course access and exposes server field errors through the login form', async () => {
   window.location.hash = '#/login'
   api(() => Response.json({ errors: { email: ['Неверная почта или пароль.'] } }, { status: 422 }))
-  render(<App />)
+  await act(async () => { render(<App />) })
   const user = userEvent.setup()
   expect(screen.getByRole('link', { name: /продолжить без аккаунта/i })).toBeTruthy()
   await user.type(screen.getByLabelText('Электронная почта'), 'pilot@example.test')
@@ -36,7 +36,7 @@ it('imports anonymous progress only during registration and displays the call si
     expect(JSON.parse(String(init?.body))).toMatchObject({ call_sign: 'Луна', progress: { legacyCompletedMissionIds: ['legacy'] } })
     return Response.json({ data: { id: 17, email: 'pilot@example.test', call_sign: 'Луна' } })
   })
-  render(<App />)
+  await act(async () => { render(<App />) })
   const user = userEvent.setup()
   await user.type(screen.getByLabelText('Позывной'), 'Луна')
   await user.type(screen.getByLabelText('Электронная почта'), 'pilot@example.test')
@@ -51,7 +51,7 @@ it('shows pending state and generic confirmation for password recovery', async (
   window.location.hash = '#/forgot-password'
   let finish: ((response: Response) => void) | undefined
   api(() => new Promise((resolve) => { finish = resolve }))
-  render(<App />)
+  await act(async () => { render(<App />) })
   const user = userEvent.setup()
   await user.type(screen.getByLabelText('Электронная почта'), 'pilot@example.test')
   await user.click(screen.getByRole('button', { name: 'Отправить ссылку' }))
@@ -68,7 +68,7 @@ it('accepts the backend eight-character password and submits the reset token and
     payload = JSON.parse(String(init?.body))
     return Response.json({ message: 'Password reset' })
   })
-  render(<App />)
+  await act(async () => { render(<App />) })
   const user = userEvent.setup()
   await user.type(screen.getByLabelText('Пароль', { exact: true }), '12345678')
   await user.type(screen.getByLabelText('Повтори пароль'), '12345678')
@@ -92,7 +92,7 @@ it('never uploads anonymous progress during login and requires a password to del
     deleted = true
     return new Response(null, { status: 204 })
   })
-  render(<App />)
+  await act(async () => { render(<App />) })
   const user = userEvent.setup()
   await user.type(screen.getByLabelText('Электронная почта'), 'pilot@example.test')
   await user.type(screen.getByLabelText('Пароль', { exact: true }), 'password')
@@ -111,7 +111,7 @@ it('never uploads anonymous progress during login and requires a password to del
 it('keeps form input available after a network failure without exposing secrets in browser storage', async () => {
   window.location.hash = '#/login'
   api(() => { throw new TypeError('Network disconnected') })
-  render(<App />)
+  await act(async () => { render(<App />) })
   const user = userEvent.setup()
   await user.type(screen.getByLabelText('Электронная почта'), 'pilot@example.test')
   await user.type(screen.getByLabelText('Пароль', { exact: true }), 'private-password')
@@ -132,7 +132,7 @@ it('uses the anonymous snapshot when registering a new account after a different
     imported = JSON.parse(String(init?.body)).progress
     return Response.json({ data: { id: 2, email: 'new@example.test', call_sign: 'Новый' } })
   }))
-  render(<App />)
+  await act(async () => { render(<App />) })
   await screen.findByText('Прежний')
   const user = userEvent.setup()
   await user.type(screen.getByLabelText('Позывной'), 'Новый')
@@ -147,7 +147,7 @@ it('uses the anonymous snapshot when registering a new account after a different
 it('explains default English API validation in Russian and associates it with its field', async () => {
   window.location.hash = '#/login'
   api(() => Response.json({ errors: { email: ['These credentials do not match our records.'] } }, { status: 422 }))
-  render(<App />)
+  await act(async () => { render(<App />) })
   const user = userEvent.setup()
   await user.type(screen.getByLabelText('Электронная почта'), 'pilot@example.test')
   await user.type(screen.getByLabelText('Пароль', { exact: true }), 'password')
@@ -162,7 +162,7 @@ it('stops displaying an account when another tab starts a logout or account swit
   vi.stubGlobal('fetch', vi.fn(async (path: string) => path === '/api/user'
     ? Response.json({ data: { id: 71, email: 'a@example.test', call_sign: 'Первый' } })
     : Response.json({ version: 2, legacyCompletedMissionIds: [], exerciseResults: {} })))
-  render(<App />)
+  await act(async () => { render(<App />) })
   await screen.findByRole('heading', { name: 'Первый' })
   window.dispatchEvent(new StorageEvent('storage', { key: 'orbital-dispatcher.signed-out', newValue: 'true' }))
   await waitFor(() => expect(screen.queryByRole('heading', { name: 'Первый' })).toBeNull())
@@ -184,7 +184,7 @@ it('cancels a deferred CSRF continuation when another tab changes the authentica
     if (init?.method === 'PUT' && owner === 82) acceptedByB.push(JSON.parse(String(init.body)))
     return Response.json({ version: 2, legacyCompletedMissionIds: [], exerciseResults: {} })
   }))
-  render(<App />)
+  await act(async () => { render(<App />) })
   await screen.findByRole('heading', { name: 'Первый' })
   learningProgressService.recordAnswer({ exerciseId: 'module-1-exercise-1', correct: true, hintSeenBeforeAnswer: false, sessionId: 'a', isReview: false })
   await waitFor(() => expect(finishCsrf).toBeDefined())
@@ -195,5 +195,5 @@ it('cancels a deferred CSRF continuation when another tab changes the authentica
   await new Promise((resolve) => setTimeout(resolve, 0))
   expect(acceptedByB).toEqual([])
   expect(csrfSignal?.aborted).toBe(true)
-  expect(localStorage.getItem('orbital-dispatcher.account.81.outbox')).toContain('module-1-exercise-1')
+  expect(JSON.stringify(readAccountProgress(81, 'outbox'))).toContain('module-1-exercise-1')
 })

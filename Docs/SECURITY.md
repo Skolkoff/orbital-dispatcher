@@ -4,7 +4,7 @@
 
 The Laravel API owns accounts and authenticated learning progress. React authenticates with Sanctum's stateful, HTTP-only session cookie and sends the CSRF token on state-changing requests. Protected routes use the authenticated session as the sole source of account identity. The browser never receives a password hash or session secret.
 
-Passwords are hashed by Laravel. Registration, sign-in, password reset, and reset-token use are rate-limited. Password-reset responses do not reveal whether an email address has an account. Account deletion requires the current password, ends the session, and cascades to the account's progress record.
+Passwords are hashed by Laravel. Registration, sign-in, password reset, and reset-token use are rate-limited. Password-reset responses do not reveal whether an email address has an account. Account deletion requires the current password, ends the session, and cascades to the account's progress record. Logout and deletion also require the displayed account ID in `X-Progress-Owner`; a different authenticated cookie owner is rejected with HTTP 409. The browser cancels pending account mutations when the shared session changes.
 
 Each account has one progress document in MySQL. The API validates its shape and size, merges progress monotonically, and scopes reads and writes to the authenticated learner. Browser storage is an offline cache and retry queue, keyed by account id; it is not an authorization boundary. A pending queue from one account must never be replayed into another account. Anonymous progress is imported during registration only.
 
@@ -41,7 +41,7 @@ Before a public deployment:
 - Set `APP_ENV=production`, `APP_DEBUG=false`, a unique generated `APP_KEY`, and HTTPS `APP_URL`.
 - Set `SESSION_SECURE_COOKIE=true`; keep the session cookie HTTP-only and use HTTPS for the SPA and API.
 - Set `SANCTUM_STATEFUL_DOMAINS` and `SESSION_DOMAIN` to the actual same-site host configuration. Do not enable permissive credentialed CORS.
-- Configure a real SMTP provider and verify password-reset email delivery. The local log mailer is for development only.
+- Configure a real SMTP provider and verify password-reset email delivery. Local development defaults to the non-logging array mailer; configure a local SMTP inbox to manually receive reset links.
 - Store credentials in the hosting environment or GitHub Actions secrets. Never place server credentials in Vite variables or committed files.
 - Use a least-privilege MySQL account for the app and keep backups of account/progress data.
 

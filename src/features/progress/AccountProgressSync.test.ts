@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { AccountProgressSync } from './AccountProgressSync'
-import { learningProgressService as progress, LEARNING_PROGRESS_STORAGE_KEY, type LearningProgress } from './LearningProgressService'
+import { learningProgressService as progress, LEARNING_PROGRESS_STORAGE_KEY, readAccountProgress, type LearningProgress } from './LearningProgressService'
 
 const empty: LearningProgress = { version: 2, legacyCompletedMissionIds: [], exerciseResults: {} }
 const answer = { exerciseId: 'module-1-exercise-1', correct: true, hintSeenBeforeAnswer: false, sessionId: 'practice', isReview: false }
@@ -31,7 +31,7 @@ it('retains offline outbox, retries only for its owner and clears it on deletion
   await sync.connect(11)
   progress.recordAnswer(answer)
   await sync.disconnect()
-  expect(localStorage.getItem('orbital-dispatcher.account.11.outbox')).toContain(answer.exerciseId)
+  expect(JSON.stringify(readAccountProgress(11, 'outbox'))).toContain(answer.exerciseId)
   offline = false
   await sync.connect(12)
   expect(progress.load().exerciseResults).toEqual({})
@@ -40,7 +40,7 @@ it('retains offline outbox, retries only for its owner and clears it on deletion
   await sync.connect(11)
   expect(progress.load().exerciseResults[answer.exerciseId]?.solved).toBe(true)
   expect(uploads).toHaveLength(1)
-  expect(localStorage.getItem('orbital-dispatcher.account.11.outbox')).toBeNull()
+  expect(readAccountProgress(11, 'outbox')).toBeNull()
   sync.deleteLocalAccount()
   expect(localStorage.getItem('orbital-dispatcher.account.11.cache')).toBeNull()
   expect(progress.load().exerciseResults).toEqual({})
@@ -128,15 +128,53 @@ it('retains an answer recorded while a retry GET is deferred and then syncs that
   await sync.connect(61)
   const retry = sync.retry()
   progress.recordAnswer(answer)
-  expect(localStorage.getItem('orbital-dispatcher.account.61.outbox')).toContain(answer.exerciseId)
+  expect(JSON.stringify(readAccountProgress(61, 'outbox'))).toContain(answer.exerciseId)
   finishLoad?.(empty)
   await Promise.race([retry, saveStarted])
   expect(progress.load().exerciseResults[answer.exerciseId]?.solved).toBe(true)
-  expect(localStorage.getItem('orbital-dispatcher.account.61.outbox')).toContain(answer.exerciseId)
+  expect(JSON.stringify(readAccountProgress(61, 'outbox'))).toContain(answer.exerciseId)
   expect(uploaded?.exerciseResults[answer.exerciseId]?.solved).toBe(true)
   finishSave?.(uploaded!)
   await retry
-  expect(localStorage.getItem('orbital-dispatcher.account.61.outbox')).toBeNull()
+  expect(readAccountProgress(61, 'outbox')).toBeNull()
   expect(progress.load().exerciseResults[answer.exerciseId]?.solved).toBe(true)
   await sync.disconnect()
+})
+
+it('does not acknowledge another tab offline answer when its earlier upload finishes', async () => {
+  vi.resetModules()
+  const first = await import('./AccountProgressSync')
+  const firstProgress = (await import('./LearningProgressService')).learningProgressService
+  let release!: (value: LearningProgress) => void
+  let snapshot!: LearningProgress
+  const a = new first.AccountProgressSync({ load: async () => empty, save: async (value) => {
+    snapshot = value
+    return new Promise((resolve) => { release = resolve })
+  } })
+  await a.connect(71)
+  firstProgress.recordAnswer(answer)
+  vi.resetModules()
+  const second = await import('./AccountProgressSync')
+  const secondService = await import('./LearningProgressService')
+  const b = new second.AccountProgressSync({ load: async () => empty, save: async () => { throw new TypeError('offline') } })
+  await b.connect(71)
+  secondService.learningProgressService.recordAnswer({ ...answer, exerciseId: 'other-tab-answer' })
+  await b.flush()
+  b.stop()
+  release(snapshot)
+  await a.flush()
+  a.stop()
+  expect(secondService.readAccountProgress(71, 'outbox')?.exerciseResults['other-tab-answer']?.solved).toBe(true)
+})
+
+it('uploads all captured foreign-tab records before acknowledging them', async () => {
+  let saved: LearningProgress | undefined
+  const sync = new AccountProgressSync({ load: async () => empty, save: async (value) => { saved = value; return value } })
+  await sync.connect(81)
+  localStorage.setItem('orbital-dispatcher.account.81.outbox.foreign', JSON.stringify({ ...empty, legacyCompletedMissionIds: ['foreign-evidence'] }))
+  progress.recordAnswer(answer)
+  await sync.flush()
+  expect(saved?.legacyCompletedMissionIds).toContain('foreign-evidence')
+  expect(readAccountProgress(81, 'outbox')).toBeNull()
+  sync.stop()
 })

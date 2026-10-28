@@ -243,3 +243,99 @@ test('authentication screens fit mobile, tablet, and desktop viewports', async (
     }
   }
 })
+
+for (const action of ['delete', 'logout'] as const) {
+  test(`a deferred ${action} cannot affect the account selected by another tab`, async ({ page, context }) => {
+    const first = learner()
+    const second = learner()
+    await register(page, first)
+    const other = await context.newPage()
+    await register(other, second)
+    await signIn(page, first)
+    await page.goto('/#/account')
+    if (action === 'delete') {
+      await page.getByText('Удалить аккаунт', { exact: true }).click()
+      await page.getByLabel('Текущий пароль').fill(password)
+    }
+    let release!: () => void
+    let started!: () => void
+    const held = new Promise<void>((resolve) => { release = resolve })
+    const waiting = new Promise<void>((resolve) => { started = resolve })
+    await page.route('**/sanctum/csrf-cookie', async (route) => { started(); await held; await route.continue().catch(() => {}) })
+    await page.getByRole('button', { name: action === 'delete' ? 'Удалить аккаунт навсегда' : 'Выйти из аккаунта' }).click()
+    await waiting
+    await signIn(other, second)
+    release()
+    await expect.poll(() => other.evaluate(async () => {
+      const response = await fetch('/api/user', { headers: { Accept: 'application/json' } })
+      return response.ok ? (await response.json()).data.call_sign : null
+    })).toBe(second.callSign)
+    await page.unroute('**/sanctum/csrf-cookie')
+    await signIn(page, first)
+    await expect(page.getByRole('heading', { name: first.callSign, exact: true })).toBeVisible()
+  })
+}
+
+test('restoration waits for initial ownership and recovers after an offline reload', async ({ page }) => {
+  const account = learner()
+  await register(page, account)
+  let release!: () => void
+  let started!: () => void
+  const held = new Promise<void>((resolve) => { release = resolve })
+  const waiting = new Promise<void>((resolve) => { started = resolve })
+  await page.route('**/api/user', async (route) => { started(); await held; await route.continue() })
+  await page.reload()
+  await waiting
+  await expect(page.getByRole('heading', { name: account.callSign, exact: true })).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('Проверяем сессию')
+  release()
+  await expect(page.getByRole('heading', { name: account.callSign, exact: true })).toBeVisible()
+  await page.unroute('**/api/user')
+  await page.route('**/api/user', (route) => route.abort('internetdisconnected'))
+  await page.reload()
+  await expect(page.getByRole('status')).toContainText('Не удалось проверить сессию')
+  await expect(page.getByRole('heading', { name: account.callSign, exact: true })).toHaveCount(0)
+  await page.unroute('**/api/user')
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect(page.getByRole('heading', { name: account.callSign, exact: true })).toBeVisible()
+})
+
+test('a completed upload preserves another tab offline answer after that tab closes', async ({ page, context }) => {
+  const account = learner()
+  await register(page, account)
+  const other = await context.newPage()
+  await other.goto('/#/account')
+  await expect(other.getByRole('heading', { name: account.callSign, exact: true })).toBeVisible()
+  let release!: () => void
+  let started!: () => void
+  const held = new Promise<void>((resolve) => { release = resolve })
+  const waiting = new Promise<void>((resolve) => { started = resolve })
+  await page.route('**/api/progress', async (route) => {
+    if (route.request().method() !== 'PUT') { await route.continue(); return }
+    started()
+    await held
+    await route.continue()
+  })
+  await solveFirstExercise(page)
+  await waiting
+  await other.route('**/api/progress', (route) => route.request().method() === 'PUT' ? route.abort('internetdisconnected') : route.continue())
+  const next = courseModules[0].exercises[1]
+  if (next.kind !== 'choice') throw new Error('Expected a choice exercise')
+  const correct = next.options.find((option) => option.id === next.correctOptionId)!
+  await solveFirstExercise(other)
+  await other.getByRole('button', { name: /следующее задание/i }).click()
+  await other.getByRole('radio', { name: correct.label }).check()
+  await other.getByRole('button', { name: 'Проверить ответ', exact: true }).click()
+  await expect(other.getByText('Прогресс на устройстве · ждёт отправки', { exact: true })).toBeVisible()
+  await other.close()
+  release()
+  await expect(page.getByText('Прогресс синхронизирован', { exact: true })).toBeVisible()
+  expect(await page.evaluate((id) => Object.keys(localStorage)
+    .filter((key) => key.includes('.outbox.')).some((key) => localStorage.getItem(key)?.includes(id)), next.id)).toBe(true)
+  await page.unroute('**/api/progress')
+  await page.reload()
+  await expect(page.getByText('Прогресс синхронизирован', { exact: true })).toBeVisible()
+  const saved = await serverProgress(page)
+  expect(saved.exerciseResults[exercise.id]?.solved).toBe(true)
+  expect(saved.exerciseResults[next.id]?.solved).toBe(true)
+})

@@ -1,3 +1,4 @@
+import { mergeProgress } from './mergeProgress'
 export type ExerciseProgress = {
   solved: boolean
   attempts: number
@@ -86,13 +87,36 @@ let accountProgress = emptyProgress()
 const listeners = new Set<() => void>()
 function notify() { for (const listener of listeners) listener() }
 export const accountStorageKey = (id: number, kind: 'cache' | 'outbox') => `orbital-dispatcher.account.${id}.${kind}`
-export function readAccountProgress(id: number, kind: 'cache' | 'outbox') {
-  try { return parseProgress(browserStorage()?.getItem(accountStorageKey(id, kind)) ?? null) } catch { return null }
+export function outboxEntries(id: number): [string, string][] {
+  try {
+    const storage = browserStorage()
+    if (!storage) return []
+    const prefix = accountStorageKey(id, 'outbox')
+    return Object.keys(storage).filter((key) => key === prefix || key.startsWith(`${prefix}.`))
+      .map((key) => [key, storage.getItem(key)!])
+  } catch { return [] }
+}
+export function acknowledgeOutbox(entries: [string, string][]) {
+  try {
+    const storage = browserStorage()
+    for (const [key, raw] of entries) if (storage?.getItem(key) === raw) storage.removeItem(key)
+  } catch { /* A later replay is safe when acknowledgement fails. */ }
+}
+export function readAccountProgress(id: number, kind: 'cache' | 'outbox'): LearningProgress | null {
+  try {
+    if (kind === 'cache') return parseProgress(browserStorage()?.getItem(accountStorageKey(id, kind)) ?? null)
+    const values = outboxEntries(id).map(([, raw]) => parseProgress(raw)).filter((value): value is LearningProgress => value !== null)
+    return values.length ? values.reduce(mergeProgress, emptyProgress()) : null
+  } catch { return null }
 }
 export function writeAccountProgress(id: number, kind: 'cache' | 'outbox', value: LearningProgress | null) {
   try {
     const storage = browserStorage()
-    if (value) storage?.setItem(accountStorageKey(id, kind), JSON.stringify(value))
+    if (value) {
+      // Immutable independently named records let each upload acknowledge only its captured work.
+      const key = accountStorageKey(id, kind) + (kind === 'outbox' ? `.${crypto.randomUUID()}` : '')
+      storage?.setItem(key, JSON.stringify(value))
+    } else if (kind === 'outbox') acknowledgeOutbox(outboxEntries(id))
     else storage?.removeItem(accountStorageKey(id, kind))
   } catch { /* The active session retains progress when browser storage is unavailable. */ }
 }

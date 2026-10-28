@@ -61,7 +61,7 @@ class AccountTest extends TestCase
         $this->getJson('/api/user')->assertOk()->assertJsonPath('data.id', $user->id);
         $sessionId = session()->getId();
         $token = session()->token();
-        $this->postJson('/api/logout')->assertNoContent();
+        $this->withHeader('X-Progress-Owner', (string) $user->id)->postJson('/api/logout')->assertNoContent();
         $this->assertGuest('web');
         $this->app['auth']->forgetGuards();
         $this->assertNotSame($sessionId, session()->getId());
@@ -133,7 +133,7 @@ class AccountTest extends TestCase
         }
         $this->actingAs($user)->getJson('/api/user');
         $sessionId = session()->getId();
-        $this->deleteJson('/api/user', ['password' => 'password'])->assertNoContent();
+        $this->withHeader('X-Progress-Owner', (string) $user->id)->deleteJson('/api/user', ['password' => 'password'])->assertNoContent();
         $this->assertGuest('web');
         $this->app['auth']->forgetGuards();
         $this->assertNotSame($sessionId, session()->getId());
@@ -167,9 +167,9 @@ class AccountTest extends TestCase
             $this->newClient($oldId);
             $this->getJson('/api/user')->assertOk()->assertJsonPath('data.id', $user->id);
             if ($action === 'logout') {
-                $this->postJson('/api/logout')->assertNoContent();
+                $this->withHeader('X-Progress-Owner', (string) $user->id)->postJson('/api/logout')->assertNoContent();
             } else {
-                $this->deleteJson('/api/user', ['password' => 'password'])->assertNoContent();
+                $this->withHeader('X-Progress-Owner', (string) $user->id)->deleteJson('/api/user', ['password' => 'password'])->assertNoContent();
             }
             $this->assertDatabaseMissing('sessions', ['id' => $oldId]);
             $this->newClient($oldId);
@@ -180,6 +180,28 @@ class AccountTest extends TestCase
                 $this->getJson('/api/user')->assertUnauthorized();
             }
         }
+    }
+
+    public function test_stale_owner_cannot_delete_or_logout_the_current_cookie_account(): void
+    {
+        $first = User::factory()->create();
+        $second = User::factory()->create();
+        LearningProgress::factory()->create(['user_id' => $second->id]);
+        $this->actingAs($second)->withHeader('X-Progress-Owner', (string) $first->id);
+        $this->deleteJson('/api/user', ['password' => 'password'])->assertStatus(409);
+        $this->postJson('/api/logout')->assertStatus(409);
+        $this->assertAuthenticatedAs($second);
+        $this->assertModelExists($first);
+        $this->assertModelExists($second);
+        $this->assertDatabaseHas('learning_progress', ['user_id' => $second->id]);
+    }
+
+    public function test_mail_defaults_never_log_password_reset_messages(): void
+    {
+        $example = file_get_contents(base_path('.env.example'));
+        $this->assertStringContainsString('MAIL_MAILER=array', $example);
+        $config = file_get_contents(config_path('mail.php'));
+        $this->assertStringContainsString("env('MAIL_MAILER', 'array')", $config);
     }
 
     private function newClient(?string $sessionId = null): void
