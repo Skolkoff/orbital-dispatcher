@@ -1,0 +1,107 @@
+.brand-logo {
+  display: block;
+  width: min(100%, 168px);
+  height: auto;
+  object-fit: contain;
+}
+
+.cadet-guide {
+  display: block;
+  width: min(100%, 176px);
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 2px solid #191919;
+  border-radius: 50%;
+  box-shadow: 4px 4px 0 #191919;
+}
+
+.orbi-companion {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  padding: 10px 14px 10px 10px;
+  color: #191919;
+  background: #fffdf7;
+  border: 2px solid #191919;
+  border-radius: 20px;
+  box-shadow: 3px 3px 0 #191919;
+}
+
+.orbi-companion__svg {
+  display: block;
+  flex: 0 0 76px;
+  width: 76px;
+  height: 76px;
+  overflow: visible;
+}
+
+.orbi-companion__satellite {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: orbi-float 3.6s ease-in-out infinite;
+}
+
+.orbi-companion__orbit,
+.orbi-companion__antenna,
+.orbi-companion__panel-lines,
+.orbi-companion__smile,
+.orbi-companion__shine {
+  fill: none;
+  stroke: #191919;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.orbi-companion__orbit { stroke: #7057e8; stroke-dasharray: 3 5; }
+.orbi-companion__antenna { stroke-width: 3; }
+.orbi-companion__signal { fill: #f07891; stroke: #191919; stroke-width: 2; }
+.orbi-companion__panel { fill: #7057e8; stroke: #191919; stroke-width: 3; }
+.orbi-companion__panel-lines { stroke: #fff8e8; stroke-width: 1.5; }
+.orbi-companion__body { fill: #c9f45b; stroke: #191919; stroke-width: 3; }
+.orbi-companion__eye { fill: #191919; }
+.orbi-companion__smile { stroke-width: 3; }
+.orbi-companion__shine { stroke: #fffdf7; stroke-width: 3; }
+.orbi-companion__message { font-size: .9rem; font-weight: 700; line-height: 1.35; }
+
+.orbi-companion--hint { background: #ece7fc; }
+.orbi-companion--hint .orbi-companion__signal { fill: #ffcb47; }
+.orbi-companion--correction { background: #fce3e9; }
+.orbi-companion--correction .orbi-companion__signal { fill: #f07891; }
+.orbi-companion--success { background: #f2fcda; }
+.orbi-companion--success .orbi-companion__signal { fill: #c9f45b; }
+.orbi-companion--hint .orbi-companion__satellite { animation-name: orbi-nudge; animation-duration: 1.2s; animation-iteration-count: 1; }
+.orbi-companion--correction .orbi-companion__satellite { animation-name: orbi-correct; animation-duration: .85s; animation-iteration-count: 1; }
+.orbi-companion--success .orbi-companion__satellite { animation-name: orbi-celebrate; animation-duration: 1.5s; animation-iteration-count: 1; }
+
+@keyframes orbi-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes orbi-nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
+
+@keyframes orbi-correct {
+  0%, 100% { transform: rotate(0); }
+  35% { transform: rotate(-8deg); }
+  70% { transform: rotate(5deg); }
+}
+
+@keyframes orbi-celebrate {
+  0%, 100% { transform: scale(1) rotate(0); }
+  45% { transform: scale(1.08) rotate(8deg); }
+}
+
+@media (max-width: 380px) {
+  .orbi-companion { gap: 8px; padding-right: 10px; }
+  .orbi-companion__svg { flex-basis: 64px; width: 64px; height: 64px; }
+  .orbi-companion__message { font-size: .82rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbi-companion__satellite { animation: none !important; }
+}
