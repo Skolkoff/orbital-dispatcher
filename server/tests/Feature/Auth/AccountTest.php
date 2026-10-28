@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\LearningProgress;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,9 +32,9 @@ class AccountTest extends TestCase
     {
         $this->getJson('/sanctum/csrf-cookie');
         $sessionId = session()->getId();
-        $this->postJson('/api/register', $this->registration())->assertCreated()
-            ->assertExactJson(['data' => ['id' => 1, 'email' => 'learner@example.com', 'call_sign' => 'Орбита']]);
+        $response = $this->postJson('/api/register', $this->registration())->assertCreated();
         $user = User::firstOrFail();
+        $response->assertExactJson(['data' => ['id' => $user->id, 'email' => 'learner@example.com', 'call_sign' => 'Орбита']]);
         $this->assertTrue(Hash::check('strong-password', $user->password));
         $this->assertAuthenticatedAs($user);
         $this->assertNotSame($sessionId, session()->getId());
@@ -124,6 +125,8 @@ class AccountTest extends TestCase
     {
         $user = User::factory()->create();
         $other = User::factory()->create();
+        LearningProgress::factory()->create(['user_id' => $user->id]);
+        LearningProgress::factory()->create(['user_id' => $other->id]);
         Password::createToken($user);
         foreach (['owned-a' => $user->id, 'owned-b' => $user->id, 'unrelated' => $other->id] as $id => $userId) {
             DB::table('sessions')->insert(['id' => $id, 'user_id' => $userId, 'payload' => '', 'last_activity' => time()]);
@@ -135,6 +138,8 @@ class AccountTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->assertNotSame($sessionId, session()->getId());
         $this->assertModelMissing($user);
+        $this->assertDatabaseMissing('learning_progress', ['user_id' => $user->id]);
+        $this->assertDatabaseHas('learning_progress', ['user_id' => $other->id]);
         $this->assertDatabaseMissing('sessions', ['user_id' => $user->id]);
         $this->assertDatabaseHas('sessions', ['user_id' => $other->id]);
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);

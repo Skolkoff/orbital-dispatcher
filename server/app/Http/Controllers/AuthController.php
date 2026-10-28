@@ -9,6 +9,7 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\LearningProgressStore;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,9 +22,17 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function register(RegisterRequest $request): JsonResponse
+    public function register(RegisterRequest $request, LearningProgressStore $store): JsonResponse
     {
-        $user = DB::transaction(fn () => User::create($request->safe()->only(['email', 'call_sign', 'password'])));
+        $user = DB::transaction(function () use ($request, $store): User {
+            $user = User::create($request->safe()->only(['email', 'call_sign', 'password']));
+            if ($request->has('progress')) {
+                $document = json_decode($request->getContent(), true)['progress'];
+                $store->save($user, $document);
+            }
+
+            return $user;
+        });
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
 
