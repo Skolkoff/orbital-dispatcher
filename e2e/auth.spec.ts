@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { courseModules } from '../src/features/learning/data/course'
 import type { LearningProgress } from '../src/features/progress/LearningProgressService'
@@ -16,6 +18,36 @@ function learner(): Learner {
   return { email: `pilot-${randomUUID()}@example.test`, callSign: `Луна-${randomUUID().slice(0, 5)}` }
 }
 
+function issueResetToken(email: string): string {
+  const php = `$user = \\App\\Models\\User::where('email', '${email}')->firstOrFail(); echo \\Illuminate\\Support\\Facades\\Password::broker()->createToken($user);`
+  let output: string
+  try {
+    output = execFileSync('php', ['artisan', 'tinker', `--execute=${php}`], {
+      cwd: resolve(process.cwd(), 'server'),
+      env: {
+        ...process.env,
+        APP_ENV: 'local',
+        APP_URL: 'http://127.0.0.1:8000',
+        SPA_URL: 'http://127.0.0.1:5173',
+        DB_CONNECTION: 'mysql',
+        DB_DATABASE: 'orbital_dispatcher_test',
+        SESSION_DRIVER: 'database',
+        CACHE_STORE: 'array',
+        QUEUE_CONNECTION: 'sync',
+        MAIL_MAILER: 'array',
+        APP_DEBUG: 'false',
+      },
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+  } catch {
+    throw new Error('Laravel did not issue the test password-reset token')
+  }
+  const token = output.trim()
+  if (!/^[a-f0-9]{64}$/.test(token)) throw new Error('Laravel did not return a valid test password-reset token')
+  return token
+}
+
 async function register(page: Page, account: Learner) {
   await page.goto('/#/register')
   await page.getByLabel('Позывной', { exact: true }).fill(account.callSign)
@@ -27,10 +59,10 @@ async function register(page: Page, account: Learner) {
   await expect(page.getByRole('heading', { name: account.callSign, exact: true })).toBeVisible()
 }
 
-async function signIn(page: Page, account: Learner) {
+async function signIn(page: Page, account: Learner, credential = password) {
   await page.goto('/#/login')
   await page.getByLabel('Электронная почта', { exact: true }).fill(account.email)
-  await page.getByLabel('Пароль', { exact: true }).fill(password)
+  await page.getByLabel('Пароль', { exact: true }).fill(credential)
   await page.getByRole('button', { name: 'Войти' }).click()
   await expect(page).toHaveURL(/#\/account$/)
   await expect(page.getByRole('heading', { name: account.callSign, exact: true })).toBeVisible()
@@ -121,7 +153,7 @@ test('one learner never sees a different learner’s saved answers', async ({ pa
   expect(isolated.legacyCompletedMissionIds).toEqual([])
 })
 
-test('forgot-password response is non-enumerating and reset rejects an invalid token', async ({ page }) => {
+test('forgot-password response is non-enumerating and a broker token resets the password', async ({ page }) => {
   const account = learner()
   await register(page, account)
 
@@ -136,12 +168,28 @@ test('forgot-password response is non-enumerating and reset rejects an invalid t
   await page.getByRole('button', { name: 'Отправить ссылку' }).click()
   await expect(page.getByRole('status')).toHaveText(knownAddressResponse ?? '')
 
-  await page.goto(`/#/reset-password/invalid-e2e-token?email=${encodeURIComponent(account.email)}`)
-  await page.getByLabel('Пароль', { exact: true }).fill(password)
-  await page.getByLabel('Повтори пароль').fill(password)
+  const resetToken = issueResetToken(account.email)
+  const updatedPassword = 'test-only-e2e-password-updated'
+  await page.goto(`/#/reset-password/${resetToken}?email=${encodeURIComponent(account.email)}`)
+  await expect(page.getByRole('heading', { name: 'Новый пароль — новый старт' })).toBeVisible()
+  await page.evaluate(() => window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/reset-password`))
+  expect(await page.evaluate(() => window.location.hash === '#/reset-password')).toBe(true)
+  await page.getByLabel('Пароль', { exact: true }).fill(updatedPassword)
+  await page.getByLabel('Повтори пароль', { exact: true }).fill(updatedPassword)
   await page.getByRole('button', { name: 'Сохранить пароль' }).click()
-  await expect(page.getByRole('alert')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Перейти ко входу' })).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('Пароль изменён')
+
+  await page.goto('/#/account')
+  await page.getByRole('button', { name: 'Выйти из аккаунта' }).click()
+  await expect(page).toHaveURL(/#\/dashboard$/)
+
+  await page.goto('/#/login')
+  await page.getByLabel('Электронная почта', { exact: true }).fill(account.email)
+  await page.getByLabel('Пароль', { exact: true }).fill(password)
+  await page.getByRole('button', { name: 'Войти' }).click()
+  await expect(page.getByRole('alert')).toContainText('Неверная почта или пароль.')
+
+  await signIn(page, account, updatedPassword)
 })
 
 test('account deletion requires the current password and invalidates the session', async ({ page }) => {
