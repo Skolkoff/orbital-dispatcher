@@ -90,7 +90,7 @@ class AccountTest extends TestCase
     {
         $user = User::factory()->create();
         $token = Password::createToken($user);
-        $payload = ['email' => $user->email, 'token' => $token, 'password' => 'new-strong-password', 'password_confirmation' => 'new-strong-password'];
+        $payload = ['email' => ' '.strtoupper($user->email).' ', 'token' => $token, 'password' => 'new-strong-password', 'password_confirmation' => 'new-strong-password'];
         $this->postJson('/api/reset-password', array_replace($payload, ['token' => 'invalid']))->assertUnprocessable();
         DB::table('password_reset_tokens')->where('email', $user->email)->update(['created_at' => now()->subMinutes(61)]);
         $this->postJson('/api/reset-password', $payload)->assertUnprocessable();
