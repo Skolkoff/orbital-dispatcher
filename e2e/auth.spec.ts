@@ -1,0 +1,196 @@
+import { randomUUID } from 'node:crypto'
+import { expect, test, type Page } from '@playwright/test'
+import { courseModules } from '../src/features/learning/data/course'
+import type { LearningProgress } from '../src/features/progress/LearningProgressService'
+
+const progressKey = 'orbital-dispatcher.learning-progress.v2'
+const password = 'test-only-e2e-password'
+const exercise = courseModules[0].exercises[0]
+if (exercise.kind !== 'choice') throw new Error('The first exercise should be a choice exercise')
+const correctOption = exercise.options.find((option) => option.id === exercise.correctOptionId)
+if (!correctOption) throw new Error('The first exercise should include its correct option')
+
+type Learner = { email: string; callSign: string }
+
+function learner(): Learner {
+  return { email: `pilot-${randomUUID()}@example.test`, callSign: `Луна-${randomUUID().slice(0, 5)}` }
+}
+
+async function register(page: Page, account: Learner) {
+  await page.goto('/#/register')
+  await page.getByLabel('Позывной', { exact: true }).fill(account.callSign)
+  await page.getByLabel('Электронная почта', { exact: true }).fill(account.email)
+  await page.getByLabel('Пароль', { exact: true }).fill(password)
+  await page.getByLabel('Повтори пароль').fill(password)
+  await page.getByRole('button', { name: 'Создать аккаунт' }).click()
+  await expect(page).toHaveURL(/#\/account$/)
+  await expect(page.getByRole('heading', { name: account.callSign, exact: true })).toBeVisible()
+}
+
+async function signIn(page: Page, account: Learner) {
+  await page.goto('/#/login')
+  await page.getByLabel('Электронная почта', { exact: true }).fill(account.email)
+  await page.getByLabel('Пароль', { exact: true }).fill(password)
+  await page.getByRole('button', { name: 'Войти' }).click()
+  await expect(page).toHaveURL(/#\/account$/)
+  await expect(page.getByRole('heading', { name: account.callSign, exact: true })).toBeVisible()
+}
+
+async function solveFirstExercise(page: Page) {
+  await page.goto(`/#/module/${exercise.moduleId}/practice/${exercise.id}`)
+  await page.getByRole('radio', { name: correctOption.label }).check()
+  await page.getByRole('button', { name: 'Проверить ответ', exact: true }).click()
+  await expect(page.getByText(exercise.correctFeedback, { exact: true })).toBeVisible()
+}
+
+async function serverProgress(page: Page) {
+  return page.evaluate(async () => {
+    const userResponse = await fetch('/api/user', { credentials: 'include', headers: { Accept: 'application/json' } })
+    if (!userResponse.ok) throw new Error('Authenticated user lookup failed')
+    const user = await userResponse.json() as { data: { id: number } }
+    const progressResponse = await fetch('/api/progress', {
+      credentials: 'include',
+      headers: { Accept: 'application/json', 'X-Progress-Owner': String(user.data.id) },
+    })
+    if (!progressResponse.ok) throw new Error('Authenticated progress lookup failed')
+    return progressResponse.json() as Promise<LearningProgress>
+  })
+}
+
+test('registration imports anonymous progress and saves solved answers to Laravel/MySQL', async ({ page }) => {
+  const anonymous: LearningProgress = { version: 2, legacyCompletedMissionIds: ['anonymous-mission'], exerciseResults: {} }
+  await page.addInitScript(({ key, progress }) => localStorage.setItem(key, JSON.stringify(progress)), { key: progressKey, progress: anonymous })
+
+  await register(page, learner())
+  await expect(page.locator('#main-content').getByText('Прогресс синхронизирован', { exact: true })).toBeVisible()
+  expect(await serverProgress(page)).toMatchObject({ legacyCompletedMissionIds: ['anonymous-mission'] })
+
+  await solveFirstExercise(page)
+  await page.goto('/#/account')
+  await expect(page.locator('.sync-state')).toHaveText('Прогресс синхронизирован')
+  expect((await serverProgress(page)).exerciseResults[exercise.id]).toMatchObject({ solved: true, attempts: 1 })
+})
+
+test('logout and login restore the same account progress without merging another account', async ({ page }) => {
+  const account = learner()
+  await register(page, account)
+  await solveFirstExercise(page)
+  await page.goto('/#/account')
+  await expect(page.locator('.sync-state')).toHaveText('Прогресс синхронизирован')
+
+  await page.getByRole('button', { name: 'Выйти из аккаунта' }).click()
+  await expect(page).toHaveURL(/#\/dashboard$/)
+  await expect.poll(() => page.evaluate(async () => (await fetch('/api/user', { headers: { Accept: 'application/json' } })).status)).toBe(401)
+
+  await signIn(page, account)
+  await expect(page.locator('.sync-state')).toHaveText('Прогресс синхронизирован')
+  const restored = await page.evaluate(async () => {
+    const response = await fetch('/api/user', { credentials: 'include', headers: { Accept: 'application/json' } })
+    const user = await response.json() as { data: { id: number } }
+    const raw = localStorage.getItem(`orbital-dispatcher.account.${user.data.id}.cache`)
+    return JSON.parse(raw ?? 'null') as LearningProgress | null
+  })
+  expect(restored?.exerciseResults[exercise.id]).toMatchObject({ solved: true, attempts: 1 })
+})
+
+test('offline answer sync retries for the same account after the connection returns', async ({ page }) => {
+  await register(page, learner())
+  await page.route('**/api/progress', (route) => route.request().method() === 'PUT' ? route.abort('failed') : route.continue())
+  await solveFirstExercise(page)
+  await expect(page.getByText('Прогресс на устройстве · ждёт отправки', { exact: true })).toBeVisible()
+
+  await page.unroute('**/api/progress')
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect(page.getByText('Прогресс синхронизирован', { exact: true })).toBeVisible()
+  expect((await serverProgress(page)).exerciseResults[exercise.id]).toMatchObject({ solved: true })
+})
+
+test('one learner never sees a different learner’s saved answers', async ({ page }) => {
+  const first = learner()
+  await register(page, first)
+  await solveFirstExercise(page)
+  await expect(page.getByText('Прогресс синхронизирован', { exact: true })).toBeVisible()
+  await page.goto('/#/account')
+  await page.getByRole('button', { name: 'Выйти из аккаунта' }).click()
+  await expect(page).toHaveURL(/#\/dashboard$/)
+
+  const second = learner()
+  await register(page, second)
+  const isolated = await serverProgress(page)
+  expect(isolated.exerciseResults[exercise.id]).toBeUndefined()
+  expect(isolated.legacyCompletedMissionIds).toEqual([])
+})
+
+test('forgot-password response is non-enumerating and reset rejects an invalid token', async ({ page }) => {
+  const account = learner()
+  await register(page, account)
+
+  await page.goto('/#/forgot-password')
+  await page.getByLabel('Электронная почта', { exact: true }).fill(account.email)
+  await page.getByRole('button', { name: 'Отправить ссылку' }).click()
+  await expect(page.getByRole('status')).toContainText('Если аккаунт существует')
+  const knownAddressResponse = await page.getByRole('status').textContent()
+
+  await page.goto('/#/forgot-password')
+  await page.getByLabel('Электронная почта', { exact: true }).fill(`unknown-${randomUUID()}@example.test`)
+  await page.getByRole('button', { name: 'Отправить ссылку' }).click()
+  await expect(page.getByRole('status')).toHaveText(knownAddressResponse ?? '')
+
+  await page.goto(`/#/reset-password/invalid-e2e-token?email=${encodeURIComponent(account.email)}`)
+  await page.getByLabel('Пароль', { exact: true }).fill(password)
+  await page.getByLabel('Повтори пароль').fill(password)
+  await page.getByRole('button', { name: 'Сохранить пароль' }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Перейти ко входу' })).toHaveCount(0)
+})
+
+test('account deletion requires the current password and invalidates the session', async ({ page }) => {
+  const account = learner()
+  await register(page, account)
+  await page.getByText('Удалить аккаунт', { exact: true }).click()
+  await page.getByLabel('Текущий пароль').fill('wrong-e2e-password')
+  await page.getByRole('button', { name: 'Удалить аккаунт навсегда' }).click()
+  await expect(page.getByRole('alert')).toContainText('Текущий пароль не подошёл')
+  await expect.poll(() => page.evaluate(async () => (await fetch('/api/user', { headers: { Accept: 'application/json' } })).status)).toBe(200)
+
+  await page.getByLabel('Текущий пароль').fill(password)
+  await page.getByRole('button', { name: 'Удалить аккаунт навсегда' }).click()
+  await expect(page).toHaveURL(/#\/dashboard$/)
+  await expect.poll(() => page.evaluate(async () => (await fetch('/api/user', { headers: { Accept: 'application/json' } })).status)).toBe(401)
+})
+
+test('stateful API rejects a mutation without a CSRF token', async ({ page }) => {
+  await page.goto('/')
+  const response = await page.request.post('http://127.0.0.1:8000/api/login', {
+    headers: { Accept: 'application/json', Origin: 'http://127.0.0.1:5173', Referer: 'http://127.0.0.1:5173/', 'Sec-Fetch-Site': 'cross-site' },
+    data: { email: 'pilot@example.test', password: 'not-a-real-password' },
+  })
+  expect(response.status()).toBe(419)
+})
+
+test('authentication screens fit mobile, tablet, and desktop viewports', async ({ page }) => {
+  const screens = [
+    { route: '/#/login', heading: 'С возвращением, курсант!' },
+    { route: '/#/register', heading: 'Твой позывной — на орбиту' },
+    { route: '/#/forgot-password', heading: 'Восстановим связь' },
+    { route: '/#/reset-password/layout-token?email=pilot%40example.test', heading: 'Новый пароль — новый старт' },
+  ]
+
+  await register(page, learner())
+  for (const width of [360, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/#/account')
+    await expect(page.getByRole('heading', { name: 'Твой бортовой профиль' })).toBeVisible()
+    await expect(page.locator('.auth-card')).toBeVisible()
+    const accountDimensions = await page.evaluate(() => ({ viewport: window.innerWidth, content: document.documentElement.scrollWidth }))
+    expect(accountDimensions.content).toBe(accountDimensions.viewport)
+
+    for (const screen of screens) {
+      await page.goto(screen.route)
+      await expect(page.getByRole('heading', { name: screen.heading, exact: true })).toBeVisible()
+      await expect(page.locator('.auth-card')).toBeVisible()
+      const dimensions = await page.evaluate(() => ({ viewport: window.innerWidth, content: document.documentElement.scrollWidth }))
+      expect(dimensions.content).toBe(dimensions.viewport)
+    }
+  }
+})
