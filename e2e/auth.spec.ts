@@ -11,6 +11,7 @@ const exercise = courseModules[0].exercises[0]
 if (exercise.kind !== 'choice') throw new Error('The first exercise should be a choice exercise')
 const correctOption = exercise.options.find((option) => option.id === exercise.correctOptionId)
 if (!correctOption) throw new Error('The first exercise should include its correct option')
+const correctOptionLabel = correctOption.label
 
 type Learner = { email: string; callSign: string }
 
@@ -70,7 +71,7 @@ async function signIn(page: Page, account: Learner, credential = password) {
 
 async function solveFirstExercise(page: Page) {
   await page.goto(`/#/module/${exercise.moduleId}/practice/${exercise.id}`)
-  await page.getByRole('radio', { name: correctOption.label }).check()
+  await page.getByRole('radio', { name: correctOptionLabel }).check()
   await page.getByRole('button', { name: 'Проверить ответ', exact: true }).click()
   await expect(page.getByText(exercise.correctFeedback, { exact: true })).toBeVisible()
 }

@@ -37,3 +37,44 @@ Running 28 tests using 1 worker
 ```
 
 The first RED run, before adding the Laravel server to Playwright, failed against the unavailable API and exposed an ambiguous label selector; after server configuration and selector correction, all focused and full E2E scenarios passed.
+
+## TypeScript narrowing follow-up
+
+Captured the narrowed correct option label in a `string` constant before using it from the Playwright helper. Verification after that fix:
+
+```text
+$ npm run typecheck
+> tsc -p tsconfig.app.json && tsc -p tsconfig.node.json
+exit 0 (no diagnostics)
+
+$ npm run test:e2e -- e2e/auth.spec.ts --workers=1
+Running 8 tests using 1 worker
+8 passed (17.7s)
+```
+
+The first serial full-suite attempt had one timeout in an existing navigation test:
+
+```text
+$ npm run test:e2e -- --workers=1
+  ✘  21 [chromium] › e2e/learning.spec.ts:128:1 › a direct lesson link cannot bypass module order (30.0s)
+Test timeout of 30000ms exceeded.
+Error: page.goto: Test timeout of 30000ms exceeded.
+Call log:
+  - navigating to "http://127.0.0.1:5173/#/module/module-2/lesson", waiting until "load"
+1 failed
+27 passed (1.1m)
+```
+
+Reran the exact full command and ran that existing case alone:
+
+```text
+$ npm run test:e2e -- --workers=1
+Running 28 tests using 1 worker
+28 passed (38.0s)
+
+$ npm run test:e2e -- e2e/learning.spec.ts --workers=1 --grep "a direct lesson link cannot bypass module order"
+Running 1 test using 1 worker
+1 passed (1.4s)
+```
+
+The isolated navigation test passed in 450ms (1.4s test process) and also passed in the successful full rerun in 502ms; no timeout or source changes were needed.
