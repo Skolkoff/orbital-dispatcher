@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/app/' : '/',
+export default defineConfig(({ command, isPreview }) => ({
+  base: command === 'build' || isPreview ? '/app/' : '/',
   build: { outDir: 'server/public/app', emptyOutDir: true },
   plugins: [react()],
   server: {
