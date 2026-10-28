@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../../App'
-import { LEARNING_PROGRESS_STORAGE_KEY } from '../progress/LearningProgressService'
+import { learningProgressService, LEARNING_PROGRESS_STORAGE_KEY } from '../progress/LearningProgressService'
 
 beforeEach(() => { vi.spyOn(window, 'scrollTo').mockImplementation(() => {}) })
 afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); vi.restoreAllMocks(); window.location.hash = '' })
@@ -167,4 +167,33 @@ it('stops displaying an account when another tab starts a logout or account swit
   window.dispatchEvent(new StorageEvent('storage', { key: 'orbital-dispatcher.signed-out', newValue: 'true' }))
   await waitFor(() => expect(screen.queryByRole('heading', { name: 'Первый' })).toBeNull())
   expect(screen.getByRole('heading', { name: 'С возвращением, курсант!' })).toBeTruthy()
+})
+
+it('cancels a deferred CSRF continuation when another tab changes the authenticated owner', async () => {
+  window.location.hash = '#/account'
+  let finishCsrf: ((value: Response) => void) | undefined
+  let csrfSignal: AbortSignal | null | undefined
+  let owner = 81
+  const acceptedByB: unknown[] = []
+  vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === '/api/user') return Response.json({ data: { id: 81, email: 'a@example.test', call_sign: 'Первый' } })
+    if (path === '/sanctum/csrf-cookie') {
+      csrfSignal = init?.signal
+      return new Promise<Response>((resolve) => { finishCsrf = resolve })
+    }
+    if (init?.method === 'PUT' && owner === 82) acceptedByB.push(JSON.parse(String(init.body)))
+    return Response.json({ version: 2, legacyCompletedMissionIds: [], exerciseResults: {} })
+  }))
+  render(<App />)
+  await screen.findByRole('heading', { name: 'Первый' })
+  learningProgressService.recordAnswer({ exerciseId: 'module-1-exercise-1', correct: true, hintSeenBeforeAnswer: false, sessionId: 'a', isReview: false })
+  await waitFor(() => expect(finishCsrf).toBeDefined())
+  owner = 82
+  window.dispatchEvent(new StorageEvent('storage', { key: 'orbital-dispatcher.signed-out', newValue: 'true' }))
+  finishCsrf?.(new Response(null, { status: 204 }))
+  await waitFor(() => expect(screen.queryByRole('heading', { name: 'Первый' })).toBeNull())
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(acceptedByB).toEqual([])
+  expect(csrfSignal?.aborted).toBe(true)
+  expect(localStorage.getItem('orbital-dispatcher.account.81.outbox')).toContain('module-1-exercise-1')
 })

@@ -39,3 +39,16 @@ it('sends deletion password as JSON and accepts an empty 204 response', async ()
   }))
   await expect(authApi.deleteAccount('delete-pass')).resolves.toBeUndefined()
 })
+
+it('pins progress requests to the expected authenticated owner without changing the bare document', async () => {
+  const progress = { version: 2 as const, legacyCompletedMissionIds: [], exerciseResults: {} }
+  const scope = { ownerId: 91, signal: new AbortController().signal }
+  vi.stubGlobal('fetch', vi.fn(async (path: string, options?: RequestInit) => {
+    if (path === '/sanctum/csrf-cookie') return new Response(null, { status: 204 })
+    expect(options?.headers).toMatchObject({ 'X-Progress-Owner': '91' })
+    if (options?.method === 'PUT') expect(JSON.parse(String(options.body))).toEqual(progress)
+    return Response.json(progress)
+  }))
+  await authApi.loadProgress(scope)
+  await authApi.saveProgress(progress, scope)
+})

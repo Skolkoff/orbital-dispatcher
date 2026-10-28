@@ -98,6 +98,32 @@ class ProgressTest extends TestCase
         $this->assertDatabaseCount('learning_progress', 2);
     }
 
+    public function test_stale_owner_header_cannot_write_under_a_different_cookie_session(): void
+    {
+        $first = User::factory()->create();
+        $second = User::factory()->create();
+        $this->actingAs($first)->putJson('/api/progress', $this->snapshot())->assertOk();
+
+        $this->actingAs($second)->withHeader('X-Progress-Owner', (string) $first->id)
+            ->putJson('/api/progress', $this->snapshot())->assertStatus(409);
+
+        $this->assertDatabaseMissing('learning_progress', ['user_id' => $second->id]);
+        $this->assertDatabaseCount('learning_progress', 1);
+    }
+
+    public function test_expected_owner_header_guards_reads_and_accepts_the_matching_session(): void
+    {
+        $first = User::factory()->create();
+        $second = User::factory()->create();
+        $this->actingAs($first)->withHeader('X-Progress-Owner', (string) $first->id)
+            ->putJson('/api/progress', $this->snapshot())->assertOk();
+        $this->getJson('/api/progress')->assertOk()->assertExactJson($this->snapshot());
+
+        $this->actingAs($second)->getJson('/api/progress')->assertStatus(409);
+        $this->withHeader('X-Progress-Owner', (string) $second->id)
+            ->getJson('/api/progress')->assertOk()->assertJsonCount(0, 'exerciseResults');
+    }
+
     #[DataProvider('invalidDocuments')]
     public function test_rejects_invalid_schema_without_writing(array $patch): void
     {

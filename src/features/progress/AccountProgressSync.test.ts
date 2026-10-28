@@ -113,3 +113,30 @@ it('compares practice timestamps chronologically across timezone offsets', async
   expect(progress.load().exerciseResults['module-1-exercise-1'].lastPracticedAt).toBe('2026-10-28T10:00:00Z')
   await sync.disconnect()
 })
+
+it('retains an answer recorded while a retry GET is deferred and then syncs that owner outbox', async () => {
+  let finishLoad: ((value: LearningProgress) => void) | undefined
+  let finishSave: ((value: LearningProgress) => void) | undefined
+  let reads = 0
+  let uploaded: LearningProgress | undefined
+  let saving: (() => void) | undefined
+  const saveStarted = new Promise<void>((resolve) => { saving = resolve })
+  const sync = new AccountProgressSync({
+    load: async () => ++reads === 1 ? empty : new Promise((resolve) => { finishLoad = resolve }),
+    save: async (value) => { uploaded = value; saving?.(); return new Promise((resolve) => { finishSave = resolve }) },
+  })
+  await sync.connect(61)
+  const retry = sync.retry()
+  progress.recordAnswer(answer)
+  expect(localStorage.getItem('orbital-dispatcher.account.61.outbox')).toContain(answer.exerciseId)
+  finishLoad?.(empty)
+  await Promise.race([retry, saveStarted])
+  expect(progress.load().exerciseResults[answer.exerciseId]?.solved).toBe(true)
+  expect(localStorage.getItem('orbital-dispatcher.account.61.outbox')).toContain(answer.exerciseId)
+  expect(uploaded?.exerciseResults[answer.exerciseId]?.solved).toBe(true)
+  finishSave?.(uploaded!)
+  await retry
+  expect(localStorage.getItem('orbital-dispatcher.account.61.outbox')).toBeNull()
+  expect(progress.load().exerciseResults[answer.exerciseId]?.solved).toBe(true)
+  await sync.disconnect()
+})

@@ -26,7 +26,8 @@ export function mergeProgress(base: LearningProgress, incoming: LearningProgress
   return { version: 2, legacyCompletedMissionIds: [...new Set([...base.legacyCompletedMissionIds, ...incoming.legacyCompletedMissionIds])], exerciseResults: results }
 }
 
-type Transport = { load: () => Promise<LearningProgress>; save: (value: LearningProgress) => Promise<LearningProgress> }
+export type ProgressRequestScope = { ownerId: number; signal: AbortSignal }
+type Transport = { load: (scope: ProgressRequestScope) => Promise<LearningProgress>; save: (value: LearningProgress, scope: ProgressRequestScope) => Promise<LearningProgress> }
 export class AccountProgressSync {
   private userId: number | null = null
   private generation = 0
@@ -34,23 +35,32 @@ export class AccountProgressSync {
   private running: Promise<void> | null = null
   private unsubscribe?: () => void
   private applying = false
+  private controller: AbortController | null = null
   private transport: Transport
   private onStatus: (status: SyncStatus) => void
   constructor(transport: Transport, onStatus: (status: SyncStatus) => void = () => {}) { this.transport = transport; this.onStatus = onStatus }
 
   async connect(id: number) {
+    const previous = this.userId === id ? learningProgressService.load() : null
     this.stop()
+    this.controller = new AbortController()
     const generation = this.generation
     this.userId = id
     this.onStatus('loading')
     this.pending = readAccountProgress(id, 'outbox')
     let value: LearningProgress
     let loadStatus: SyncStatus = 'synced'
-    try { value = await this.transport.load() } catch (error) {
+    try { value = await this.transport.load({ ownerId: id, signal: this.controller.signal }) } catch (error) {
       value = readAccountProgress(id, 'cache') ?? emptyProgress()
-      loadStatus = error && typeof error === 'object' && 'status' in error && error.status === 401 ? 'expired' : 'pending'
+      loadStatus = error && typeof error === 'object' && 'status' in error && (error.status === 401 || error.status === 409) ? 'expired' : 'pending'
     }
     if (generation !== this.generation) return
+    // Answers still belong to this owner while the reload is in flight. Re-read its
+    // outbox, and retain in-memory changes too when browser persistence is unavailable.
+    this.pending = readAccountProgress(id, 'outbox') ?? this.pending
+    if (previous && learningProgressService.load() !== previous) {
+      this.pending = mergeProgress(this.pending ?? emptyProgress(), learningProgressService.load())
+    }
     if (this.pending) value = mergeProgress(value, this.pending)
     learningProgressService.useAccount(id, value)
     this.unsubscribe = learningProgressService.subscribe(() => {
@@ -67,13 +77,14 @@ export class AccountProgressSync {
     if (this.running) return this.running
     const id = this.userId
     const generation = this.generation
-    if (id === null || !this.pending) return Promise.resolve()
+    const controller = this.controller
+    if (id === null || !controller || !this.pending) return Promise.resolve()
     this.running = (async () => {
       while (this.pending && this.userId === id && generation === this.generation) {
         const snapshot = this.pending
         this.onStatus('syncing')
         try {
-          const saved = await this.transport.save(snapshot)
+          const saved = await this.transport.save(snapshot, { ownerId: id, signal: controller.signal })
           if (this.userId !== id || generation !== this.generation) return
           const changed = this.pending !== snapshot
           const merged = mergeProgress(saved, learningProgressService.load())
@@ -84,7 +95,7 @@ export class AccountProgressSync {
           this.applying = false
           this.onStatus(changed ? 'syncing' : 'synced')
         } catch (error) {
-          if (generation === this.generation) this.onStatus(error && typeof error === 'object' && 'status' in error && error.status === 401 ? 'expired' : 'pending')
+          if (generation === this.generation) this.onStatus(error && typeof error === 'object' && 'status' in error && (error.status === 401 || error.status === 409) ? 'expired' : 'pending')
           return
         }
       }
@@ -99,6 +110,8 @@ export class AccountProgressSync {
   }
 
   stop() {
+    this.controller?.abort()
+    this.controller = null
     this.generation++
     this.unsubscribe?.()
     this.unsubscribe = undefined
