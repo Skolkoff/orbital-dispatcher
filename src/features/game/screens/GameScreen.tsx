@@ -112,8 +112,18 @@ export function GameScreen({ createMission = generateMission }: GameScreenProps)
     if (phase !== 'won') return
     const dialog = victoryDialogRef.current
     if (!dialog) return
-    dialog.showModal()
-    return () => { if (dialog.open) dialog.close() }
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal()
+    } else {
+      dialog.setAttribute('open', '')
+    }
+    return () => {
+      if (typeof dialog.close === 'function' && dialog.open) {
+        dialog.close()
+      } else {
+        dialog.removeAttribute('open')
+      }
+    }
   }, [phase])
 
   useEffect(() => {

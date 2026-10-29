@@ -15,7 +15,9 @@ async function readMission(page: Page): Promise<Mission> {
     const [x, y] = value.split(',').map(Number)
     return { x, y }
   }
-  return { min: -4, max: 4, start: point(start), goal: point(goal), obstacles: JSON.parse(obstacles) as Point[] }
+  const min = Number(await board.getAttribute('data-min'))
+  const max = Number(await board.getAttribute('data-max'))
+  return { min, max, start: point(start), goal: point(goal), obstacles: JSON.parse(obstacles) as Point[] }
 }
 
 function shortestSafePath(mission: Mission): Point[] {
@@ -53,18 +55,22 @@ function shortestSafePath(mission: Mission): Point[] {
 }
 
 function horizontalThenVerticalPath(start: Point, goal: Point): Point[] {
-  const path = [start]
-  let x = start.x
-  let y = start.y
-  while (x !== goal.x) {
-    x += Math.sign(goal.x - x)
-    path.push({ x, y })
+  return [start, { x: goal.x, y: start.y }, goal]
+}
+
+function compressPath(path: Point[]): Point[] {
+  if (path.length < 3) return path
+  const compressed = [path[0]]
+  let previousDirection = { x: path[1].x - path[0].x, y: path[1].y - path[0].y }
+  for (let index = 2; index < path.length; index += 1) {
+    const direction = { x: path[index].x - path[index - 1].x, y: path[index].y - path[index - 1].y }
+    if (direction.x !== previousDirection.x || direction.y !== previousDirection.y) {
+      compressed.push(path[index - 1])
+      previousDirection = direction
+    }
   }
-  while (y !== goal.y) {
-    y += Math.sign(goal.y - y)
-    path.push({ x, y })
-  }
-  return path
+  compressed.push(path[path.length - 1])
+  return compressed
 }
 
 async function addPoint(page: Page, point: Point) {
@@ -90,7 +96,7 @@ test('learner can launch a route, learn from a collision, land, and restart', as
   await expect(page.getByRole('alert')).toContainText(/нажми на точку маршрута до столкновения/i)
 
   await addPoint(page, mission.start)
-  const safeRoute = shortestSafePath(mission)
+  const safeRoute = compressPath(shortestSafePath(mission))
   for (const point of safeRoute.slice(1)) await addPoint(page, point)
   await page.getByRole('button', { name: 'Запустить полёт' }).click()
   await expect(page.getByRole('heading', { name: 'Миссия выполнена!' })).toBeVisible({ timeout: 10_000 })
@@ -98,7 +104,7 @@ test('learner can launch a route, learn from a collision, land, and restart', as
   await expect(page.locator('.game-outcome--success')).toContainText('1 000 очков')
   expect(pageErrors).toEqual([])
 
-  await page.getByRole('button', { name: /новая карта/i }).click()
+  await page.getByRole('button', { name: /следующая миссия/i }).click()
   await expect(page.getByRole('heading', { name: 'Миссия выполнена!' })).toHaveCount(0)
   await expect(page.getByText('Точек в маршруте: 1')).toBeVisible()
   await expect(page.getByRole('timer')).toHaveText('00:00')
@@ -160,10 +166,10 @@ test.describe('game touch input', () => {
     await board.scrollIntoViewIfNeeded()
     const bounds = await board.boundingBox()
     if (!bounds) throw new Error('Mission grid is not visible')
-    const svgX = 56 + ((next.x - mission.min) / (mission.max - mission.min)) * 288
-    const svgY = 344 - ((next.y - mission.min) / (mission.max - mission.min)) * 288
+    const svgX = 64 + ((next.x - mission.min) / (mission.max - mission.min)) * 472
+    const svgY = 536 - ((next.y - mission.min) / (mission.max - mission.min)) * 472
 
-    await board.tap({ position: { x: (svgX / 400) * bounds.width, y: (svgY / 400) * bounds.height } })
+    await board.tap({ position: { x: (svgX / 600) * bounds.width, y: (svgY / 600) * bounds.height } })
     const cursor = board.locator('.mission-grid__cursor')
     await expect(cursor).toHaveAttribute('cx', String(svgX))
     await expect(cursor).toHaveAttribute('cy', String(svgY))

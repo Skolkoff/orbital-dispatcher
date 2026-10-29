@@ -41,16 +41,15 @@ it('explains the route mission and keeps launch disabled until the route reaches
   expect(screen.getByText('Цель (2; 0)')).toBeTruthy()
   expect((screen.getByRole('button', { name: 'Запустить полёт' }) as HTMLButtonElement).disabled).toBe(true)
 
-  addPoint(2, 0)
-  expect(screen.getByText(/следующая точка должна быть соседней/i)).toBeTruthy()
+  addPoint(2, 1)
+  expect(screen.getByText(/по диагонали лететь нельзя/i)).toBeTruthy()
   expect((screen.getByRole('button', { name: 'Запустить полёт' }) as HTMLButtonElement).disabled).toBe(true)
 
-  addPoint(1, 0)
   addPoint(2, 0)
   expect((screen.getByRole('button', { name: 'Запустить полёт' }) as HTMLButtonElement).disabled).toBe(false)
 
   addPoint(1, 0)
-  expect(screen.getByText('Точек в маршруте: 2')).toBeTruthy()
+  expect(screen.getByText(/^Точек в маршруте: 2/)).toBeTruthy()
   expect((screen.getByRole('button', { name: 'Запустить полёт' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
@@ -89,12 +88,12 @@ it('creates a new map after success and resets route, time, and result', async (
   fireEvent.click(screen.getByRole('button', { name: 'Запустить полёт' }))
   await advanceFlight(1_280)
   expect(screen.getByRole('heading', { name: 'Миссия выполнена!' })).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: /новая карта/i }))
+  fireEvent.click(screen.getByRole('button', { name: /следующая миссия/i }))
 
   expect(screen.getByText('Старт (−2; 1)')).toBeTruthy()
   expect(screen.getByText('Цель (1; 3)')).toBeTruthy()
   expect(screen.getByRole('timer').textContent).toBe('00:00')
-  expect(screen.getByText('Точек в маршруте: 1')).toBeTruthy()
+  expect(screen.getByText(/^Точек в маршруте: 1/)).toBeTruthy()
   expect((screen.getByRole('button', { name: 'Запустить полёт' }) as HTMLButtonElement).disabled).toBe(true)
   expect(createMission).toHaveBeenCalledTimes(2)
 })

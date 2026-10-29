@@ -188,7 +188,16 @@ class ProgressTest extends TestCase
 
     public function test_registration_imports_progress_and_rejects_bad_import_before_creation(): void
     {
-        $registration = ['email' => 'new@example.com', 'call_sign' => 'Pilot', 'password' => 'strong-password', 'password_confirmation' => 'strong-password'];
+        $registration = [
+            'email' => 'new@example.com',
+            'call_sign' => 'Pilot',
+            'password' => 'strong-password',
+            'password_confirmation' => 'strong-password',
+            'privacy_consent' => true,
+            'privacy_policy_version' => User::PRIVACY_POLICY_VERSION,
+            'newsletter_consent' => false,
+            'newsletter_consent_version' => User::NEWSLETTER_CONSENT_VERSION,
+        ];
         $this->postJson('/api/register', $registration + ['progress' => ['version' => 1]])->assertUnprocessable()->assertJsonValidationErrors('progress');
         $this->assertDatabaseCount('users', 0);
         $this->postJson('/api/register', $registration + ['progress' => $this->snapshot()])->assertCreated();
@@ -220,7 +229,17 @@ class ProgressTest extends TestCase
             throw new RuntimeException('Simulated progress write failure');
         });
         try {
-            $this->postJson('/api/register', ['email' => 'rollback@example.com', 'call_sign' => 'Pilot', 'password' => 'strong-password', 'password_confirmation' => 'strong-password', 'progress' => $this->snapshot()])->assertStatus(500);
+            $this->postJson('/api/register', [
+                'email' => 'rollback@example.com',
+                'call_sign' => 'Pilot',
+                'password' => 'strong-password',
+                'password_confirmation' => 'strong-password',
+                'privacy_consent' => true,
+                'privacy_policy_version' => User::PRIVACY_POLICY_VERSION,
+                'newsletter_consent' => false,
+                'newsletter_consent_version' => User::NEWSLETTER_CONSENT_VERSION,
+                'progress' => $this->snapshot(),
+            ])->assertStatus(500);
             $this->assertDatabaseMissing('users', ['email' => 'rollback@example.com']);
             $this->assertDatabaseCount('learning_progress', 0);
             $this->assertGuest('web');

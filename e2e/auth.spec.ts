@@ -55,6 +55,7 @@ async function register(page: Page, account: Learner) {
   await page.getByLabel('Электронная почта', { exact: true }).fill(account.email)
   await page.getByLabel('Пароль', { exact: true }).fill(password)
   await page.getByLabel('Повтори пароль').fill(password)
+  await page.getByLabel(/согласен на обработку персональных данных/i).check()
   await page.getByRole('button', { name: 'Создать аккаунт' }).click()
   await expect(page).toHaveURL(/#\/account$/)
   await expect(page.getByRole('heading', { name: account.callSign, exact: true })).toBeVisible()

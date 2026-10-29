@@ -35,11 +35,11 @@ function axisFirstRoute(map: MissionMap, horizontalFirst: boolean) {
 describe('generateMission', () => {
   it('creates endpoints inside the inclusive grid that are distinct', () => {
     const map = generateMission()
-    expect(map.min).toBe(-4)
-    expect(map.max).toBe(4)
+    expect(map.min).toBe(-10)
+    expect(map.max).toBe(10)
     for (const point of [map.start, map.goal, ...map.obstacles]) {
-      expect(Number.isInteger(point.x) && point.x >= -4 && point.x <= 4).toBe(true)
-      expect(Number.isInteger(point.y) && point.y >= -4 && point.y <= 4).toBe(true)
+      expect(Number.isInteger(point.x) && point.x >= -10 && point.x <= 10).toBe(true)
+      expect(Number.isInteger(point.y) && point.y >= -10 && point.y <= 10).toBe(true)
     }
     expect(samePoint(map.start, map.goal)).toBe(false)
   })
@@ -82,8 +82,8 @@ describe('generateMission', () => {
       })
       const safePath = findShortestSafePath(map) ?? []
 
-      expect(Math.abs(map.start.x - map.goal.x)).toBeGreaterThanOrEqual(2)
-      expect(Math.abs(map.start.y - map.goal.y)).toBeGreaterThanOrEqual(2)
+      expect(Math.abs(map.start.x - map.goal.x)).toBeGreaterThanOrEqual(4)
+      expect(Math.abs(map.start.y - map.goal.y)).toBeGreaterThanOrEqual(4)
       for (const route of [axisFirstRoute(map, true), axisFirstRoute(map, false)]) {
         expect(route.slice(1, -1).some((point) => isObstacle(map, point))).toBe(true)
       }

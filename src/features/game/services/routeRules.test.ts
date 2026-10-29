@@ -29,12 +29,12 @@ describe('routeRules', () => {
     expect(findShortestSafePath(blocked)).toBeNull()
   })
 
-  it('accepts only in-bounds points one Manhattan step from the route end', () => {
+  it('accepts in-bounds points along either axis, including long segments', () => {
     const route = [{ x: 0, y: 0 }, { x: 0, y: 1 }]
-    expect(isNextRoutePointValid(map, route, { x: 1, y: 1 })).toBe(true)
+    expect(isNextRoutePointValid(map, route, { x: 4, y: 1 })).toBe(true)
     expect(isNextRoutePointValid(map, route, { x: 0, y: 2 })).toBe(true)
     expect(isNextRoutePointValid(map, route, { x: 1, y: 2 })).toBe(false)
-    expect(isNextRoutePointValid(map, route, { x: 4, y: 1 })).toBe(false)
+    expect(isNextRoutePointValid(map, route, { x: 5, y: 1 })).toBe(false)
   })
 
   it('allows a valid next route point to be an obstacle so flight can detect collision', () => {

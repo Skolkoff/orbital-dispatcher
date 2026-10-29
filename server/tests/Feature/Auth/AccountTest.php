@@ -25,7 +25,16 @@ class AccountTest extends TestCase
 
     private function registration(array $overrides = []): array
     {
-        return array_replace(['email' => ' Learner@Example.com ', 'call_sign' => 'Орбита', 'password' => 'strong-password', 'password_confirmation' => 'strong-password'], $overrides);
+        return array_replace([
+            'email' => ' Learner@Example.com ',
+            'call_sign' => 'Орбита',
+            'password' => 'strong-password',
+            'password_confirmation' => 'strong-password',
+            'privacy_consent' => true,
+            'privacy_policy_version' => User::PRIVACY_POLICY_VERSION,
+            'newsletter_consent' => false,
+            'newsletter_consent_version' => User::NEWSLETTER_CONSENT_VERSION,
+        ], $overrides);
     }
 
     public function test_registration_normalizes_email_hashes_password_returns_safe_fields_and_rotates_session(): void
@@ -36,6 +45,12 @@ class AccountTest extends TestCase
         $user = User::firstOrFail();
         $response->assertExactJson(['data' => ['id' => $user->id, 'email' => 'learner@example.com', 'call_sign' => 'Орбита']]);
         $this->assertTrue(Hash::check('strong-password', $user->password));
+        $this->assertSame(User::PRIVACY_POLICY_VERSION, $user->privacy_policy_version);
+        $this->assertNotNull($user->privacy_consented_at);
+        $this->assertFalse($user->newsletter_consent);
+        $this->assertSame(User::NEWSLETTER_CONSENT_VERSION, $user->newsletter_consent_version);
+        $this->assertNull($user->newsletter_consented_at);
+        $this->assertNotNull($user->newsletter_consent_recorded_at);
         $this->assertAuthenticatedAs($user);
         $this->assertNotSame($sessionId, session()->getId());
     }
@@ -45,6 +60,7 @@ class AccountTest extends TestCase
         $this->postJson('/api/register', [])->assertUnprocessable()->assertJsonValidationErrors(['email', 'call_sign', 'password']);
         $this->postJson('/api/register', $this->registration(['call_sign' => 'a', 'password' => 'short']))->assertUnprocessable()->assertJsonValidationErrors(['call_sign', 'password']);
         $this->postJson('/api/register', $this->registration(['call_sign' => str_repeat('a', 25)]))->assertUnprocessable()->assertJsonValidationErrors('call_sign');
+        $this->postJson('/api/register', $this->registration(['privacy_consent' => false]))->assertUnprocessable()->assertJsonValidationErrors('privacy_consent');
         $this->postJson('/api/register', $this->registration())->assertCreated();
         $this->postJson('/api/register', $this->registration(['email' => 'LEARNER@example.com']))->assertUnprocessable()->assertJsonValidationErrors('email');
     }

@@ -88,8 +88,8 @@ export function CoordinateMissionGrid({ map, route, shipPosition, flightState, o
 
   return <div className="mission-grid">
     <div className="mission-grid__locations" aria-label="Начало и цель">
-      <span className="mission-grid__start-label">S · Старт {labelPoint(map.start)}</span>
-      <span className="mission-grid__goal-label">G · Цель {labelPoint(map.goal)}</span>
+      <span className="mission-grid__start-label">Старт {labelPoint(map.start)}</span>
+      <span className="mission-grid__goal-label">Цель {labelPoint(map.goal)}</span>
     </div>
     <div className="mission-grid__viewport">
     <svg
@@ -101,6 +101,8 @@ export function CoordinateMissionGrid({ map, route, shipPosition, flightState, o
       aria-describedby={id + '-help'}
       aria-disabled={!isInteractive}
       data-mission-grid
+      data-min={map.min}
+      data-max={map.max}
       data-start={keyOf(map.start)}
       data-goal={keyOf(map.goal)}
       data-obstacles={JSON.stringify(map.obstacles)}
