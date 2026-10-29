@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AuthProvider } from './features/auth/AuthProvider'
 import { AuthScreen } from './features/auth/AuthScreen'
+import { PrivacyScreen } from './features/auth/PrivacyScreen'
 import type { AuthPage } from './features/auth/AuthScreen'
 import './styles/auth.css'
 import type { ReactNode } from 'react'
@@ -16,16 +17,19 @@ import { ModuleResultScreen } from './features/learning/screens/ModuleResultScre
 import { PracticeScreen } from './features/learning/screens/PracticeScreen'
 import { SkillsScreen } from './features/learning/screens/SkillsScreen'
 import { GameScreen } from './features/game/screens/GameScreen'
+import { MarketingScreen } from './features/marketing/MarketingScreen'
 import { learningProgressService } from './features/progress/LearningProgressService'
 import type { LearningProgress } from './features/progress/LearningProgressService'
 import type { ExerciseAnswer } from './features/learning/types'
 
 type AppRoute =
+  | { page: 'landing' }
   | { page: 'auth'; authPage: AuthPage; token?: string; email?: string }
   | { page: 'dashboard' }
   | { page: 'game' }
   | { page: 'notFound' }
   | { page: 'map' }
+  | { page: 'privacy' }
   | { page: 'skills' }
   | { page: 'lesson' | 'practice' | 'result'; moduleId: string; exerciseId?: string }
   | { page: 'review'; exerciseId: string }
@@ -35,7 +39,9 @@ function readRoute(): AppRoute {
   const reset = /^reset-password\/([^?]+)(?:\?(.*))?$/.exec(path)
   if (reset) return { page: 'auth', authPage: 'reset-password', token: decodeURIComponent(reset[1]), email: new URLSearchParams(reset[2] ?? '').get('email') ?? '' }
   if (['login', 'register', 'forgot-password', 'account'].includes(path)) return { page: 'auth', authPage: path as AuthPage }
-  if (!path || path === 'dashboard') return { page: 'dashboard' }
+  if (path === 'privacy') return { page: 'privacy' }
+  if (!path) return { page: 'landing' }
+  if (path === 'dashboard') return { page: 'dashboard' }
   if (path === 'map') return { page: 'map' }
   if (path === 'game') return { page: 'game' }
   if (path === 'skills') return { page: 'skills' }
@@ -171,7 +177,11 @@ function CourseApp() {
   }
 
   let content: ReactNode
-  if (route.page === 'auth') {
+  if (route.page === 'landing') {
+    content = <MarketingScreen />
+  } else if (route.page === 'privacy') {
+    content = <PrivacyScreen />
+  } else if (route.page === 'auth') {
     content = <AuthScreen key={route.authPage + (route.token ?? '')} page={route.authPage} token={route.token} email={route.email} />
   } else if (route.page === 'dashboard') {
     content = <DashboardScreen modules={moduleProgress} onOpenModule={openModule} />
@@ -259,6 +269,7 @@ function CourseApp() {
     content = <RouteNotice title="Страница не найдена">Выбери раздел из навигации и продолжи полёт по курсу.</RouteNotice>
   }
 
-  const shellPage = route.page === 'review' ? 'practice' : route.page === 'notFound' || route.page === 'auth' ? 'dashboard' : route.page
+  if (route.page === 'landing') return <>{content}</>
+  const shellPage = route.page === 'review' ? 'practice' : route.page === 'notFound' || route.page === 'auth' || route.page === 'privacy' ? 'dashboard' : route.page
   return <AppShell page={shellPage}>{content}</AppShell>
 }

@@ -2,12 +2,9 @@ import type { GridPoint, MissionMap } from '../types'
 import { findShortestSafePath } from './routeRules'
 
 const coordinates: GridPoint[] = []
-for (let y = -4; y <= 4; y += 1) {
-  for (let x = -4; x <= 4; x += 1) coordinates.push({ x, y })
+for (let y = -10; y <= 10; y += 1) {
+  for (let x = -10; x <= 10; x += 1) coordinates.push({ x, y })
 }
-const endpointPairs = coordinates.flatMap((start) => coordinates
-  .filter((goal) => Math.abs(start.x - goal.x) >= 2 && Math.abs(start.y - goal.y) >= 2)
-  .map((goal) => ({ start, goal })))
 
 function randomIndex(random: () => number, length: number): number {
   const value = random()
@@ -16,7 +13,9 @@ function randomIndex(random: () => number, length: number): number {
 }
 
 export function generateMission(random: () => number = Math.random): MissionMap {
-  const { start, goal } = endpointPairs[randomIndex(random, endpointPairs.length)]
+  const start = coordinates[randomIndex(random, coordinates.length)]
+  const goals = coordinates.filter((point) => Math.abs(start.x - point.x) >= 4 && Math.abs(start.y - point.y) >= 4)
+  const goal = goals[randomIndex(random, goals.length)]
 
   const safePath: GridPoint[] = [start]
   let x = start.x
@@ -43,8 +42,8 @@ export function generateMission(random: () => number = Math.random): MissionMap 
     const swapIndex = randomIndex(random, index + 1)
     ;[candidates[index], candidates[swapIndex]] = [candidates[swapIndex], candidates[index]]
   }
-  const obstacles = [...guaranteedObstacles.filter((point): point is GridPoint => point !== undefined), ...candidates.slice(0, 8)]
-  const map: MissionMap = { min: -4, max: 4, start, goal, obstacles }
+  const obstacles = [...guaranteedObstacles.filter((point): point is GridPoint => point !== undefined), ...candidates.slice(0, 40)]
+  const map: MissionMap = { min: -10, max: 10, start, goal, obstacles }
 
   // Keep generation resilient if map rules change: return with a verified safe route.
   if (findShortestSafePath(map) === null) return { ...map, obstacles: [] }

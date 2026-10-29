@@ -25,7 +25,16 @@ class AuthController extends Controller
     public function register(RegisterRequest $request, LearningProgressStore $store): JsonResponse
     {
         $user = DB::transaction(function () use ($request, $store): User {
-            $user = User::create($request->safe()->only(['email', 'call_sign', 'password']));
+            $newsletterConsent = $request->boolean('newsletter_consent');
+            $user = User::create([
+                ...$request->safe()->only(['email', 'call_sign', 'password']),
+                'privacy_policy_version' => User::PRIVACY_POLICY_VERSION,
+                'privacy_consented_at' => now(),
+                'newsletter_consent' => $newsletterConsent,
+                'newsletter_consent_version' => User::NEWSLETTER_CONSENT_VERSION,
+                'newsletter_consented_at' => $newsletterConsent ? now() : null,
+                'newsletter_consent_recorded_at' => now(),
+            ]);
             if ($request->has('progress')) {
                 $document = json_decode($request->getContent(), true)['progress'];
                 $store->save($user, $document);

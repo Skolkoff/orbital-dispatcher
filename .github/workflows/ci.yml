@@ -192,6 +192,11 @@ jobs:
           archive="$app_path/release-$release_sha.tar.gz"
           cd "$app_path"
           test -f .env || { echo 'Missing production .env; create it outside the public directory before enabling deployment.'; exit 1; }
+          if grep -q '^APP_ENV=production$' .env && ! grep -q '^MAIL_MAILER=smtp$' .env; then
+            rm -f "$archive"
+            echo 'Production password-reset email is disabled: configure the REG.RU SMTP mailer in the private server .env before deploying.'
+            exit 1
+          fi
           tar -xzf "$archive" -C "$app_path" --no-same-owner
           rm -f "$archive"
           mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache

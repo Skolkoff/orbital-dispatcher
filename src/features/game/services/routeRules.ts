@@ -46,7 +46,21 @@ export function isNextRoutePointValid(map: MissionMap, route: GridPoint[], point
   return Boolean(current)
     && Number.isInteger(point.x) && Number.isInteger(point.y)
     && point.x >= map.min && point.x <= map.max && point.y >= map.min && point.y <= map.max
-    && Math.abs(point.x - current!.x) + Math.abs(point.y - current!.y) === 1
+    && !samePoint(current!, point)
+    && (point.x === current!.x || point.y === current!.y)
+}
+
+// Include every cell so distance, scoring, undo and collisions share one route.
+export function expandRouteSegment(map: MissionMap, route: GridPoint[], point: GridPoint): GridPoint[] {
+  if (!isNextRoutePointValid(map, route, point)) return []
+  const current = route[route.length - 1]
+  const dx = Math.sign(point.x - current.x)
+  const dy = Math.sign(point.y - current.y)
+  const distance = Math.abs(point.x - current.x) + Math.abs(point.y - current.y)
+  return Array.from({ length: distance }, (_, index) => ({
+    x: current.x + dx * (index + 1),
+    y: current.y + dy * (index + 1),
+  }))
 }
 
 export function calculateMissionScore(route: GridPoint[], shortestPath: GridPoint[]): number {

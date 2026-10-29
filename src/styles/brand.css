@@ -105,3 +105,12 @@
 @media (prefers-reduced-motion: reduce) {
   .orbi-companion__satellite { animation: none !important; }
 }
+
+.navigation-play-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  vertical-align: -.1em;
+  fill: currentColor;
+}

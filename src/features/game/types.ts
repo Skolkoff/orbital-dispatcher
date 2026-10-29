@@ -1,8 +1,8 @@
 export type GridPoint = { x: number; y: number }
 
 export type MissionMap = {
-  min: -4
-  max: 4
+  min: number
+  max: number
   start: GridPoint
   goal: GridPoint
   obstacles: GridPoint[]

@@ -3,7 +3,15 @@ import type { LearningProgress } from '../../progress/LearningProgressService'
 
 export type Account = { id: number; email: string; call_sign: string }
 export type LoginInput = { email: string; password: string }
-export type RegisterInput = LoginInput & { call_sign: string; password_confirmation: string; progress?: LearningProgress }
+export type RegisterInput = LoginInput & {
+  call_sign: string
+  password_confirmation: string
+  privacy_consent: boolean
+  privacy_policy_version: string
+  newsletter_consent: boolean
+  newsletter_consent_version: string
+  progress?: LearningProgress
+}
 export class ApiError extends Error {
   status: number
   errors: Record<string, string[]>

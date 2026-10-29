@@ -4,6 +4,7 @@ import { CadetGuide } from '../../components/CadetGuide'
 import { ApiError, authApi } from './api/authApi'
 import { useAuth } from './AuthProvider'
 import { syncLabels } from '../progress/AccountProgressSync'
+import { NEWSLETTER_CONSENT_VERSION, PRIVACY_POLICY_VERSION } from './privacyPolicy'
 
 export type AuthPage = 'login' | 'register' | 'forgot-password' | 'reset-password' | 'account'
 const titles: Record<AuthPage, string> = { login: 'С возвращением, курсант!', register: 'Твой позывной — на орбиту', 'forgot-password': 'Восстановим связь', 'reset-password': 'Новый пароль — новый старт', account: 'Твой бортовой профиль' }
@@ -43,7 +44,11 @@ export function AuthScreen({ page, token = '', email = '' }: { page: AuthPage; t
         form.reset()
         window.location.hash = '#/account'
       } else if (actualPage === 'register') {
-        await auth.register({ ...input, call_sign: String(data.get('call_sign')), password_confirmation: String(data.get('password_confirmation')) })
+        await auth.register({
+          ...input, call_sign: String(data.get('call_sign')), password_confirmation: String(data.get('password_confirmation')),
+          privacy_consent: data.get('privacy_consent') === 'on', privacy_policy_version: PRIVACY_POLICY_VERSION,
+          newsletter_consent: data.get('newsletter_consent') === 'on', newsletter_consent_version: NEWSLETTER_CONSENT_VERSION,
+        })
         form.reset()
         window.location.hash = '#/account'
       } else if (actualPage === 'forgot-password') {
@@ -114,6 +119,20 @@ export function AuthScreen({ page, token = '', email = '' }: { page: AuthPage; t
             <p className="auth-help">Не менее 8 символов. Используй фразу, которую легко запомнить.</p>
             {field('password_confirmation', 'Повтори пароль', { type: 'password', autoComplete: 'new-password', minLength: 8 })}
           </>}
+          {actualPage === 'register' && <div className="auth-consents">
+            <label className="auth-checkbox" htmlFor="auth-privacy-consent">
+              <input id="auth-privacy-consent" type="checkbox" name="privacy_consent" required disabled={busy}
+                aria-invalid={errors.privacy_consent ? true : undefined} aria-describedby="auth-privacy-note" />
+              <span>Я согласен на обработку персональных данных для создания аккаунта и сохранения учебного прогресса.</span>
+            </label>
+            <p id="auth-privacy-note" className="auth-help"><a href="#/privacy" target="_blank" rel="noopener noreferrer">Политика обработки персональных данных</a> · черновик, требуется юридическая проверка.</p>
+            {errors.privacy_consent && <p className="auth-field__error">{errors.privacy_consent.join(' ')}</p>}
+            <label className="auth-checkbox" htmlFor="auth-newsletter-consent">
+              <input id="auth-newsletter-consent" type="checkbox" name="newsletter_consent" disabled={busy} />
+              <span>Я согласен получать на указанную почту новости сервиса и рекламные сообщения. Необязательно.</span>
+            </label>
+            <p className="auth-help">Сейчас только сохраняем выбор; рассылка не отправляется.</p>
+          </div>}
           <button className="button button-dark auth-submit" disabled={busy}>{busy ? 'Отправляем…' : actualPage === 'login' ? 'Войти' : actualPage === 'register' ? 'Создать аккаунт' : actualPage === 'forgot-password' ? 'Отправить ссылку' : 'Сохранить пароль'}<span aria-hidden="true">→</span></button>
         </form>
         {actualPage === 'login' && <a className="auth-recovery" href="#/forgot-password">Забыл пароль?</a>}

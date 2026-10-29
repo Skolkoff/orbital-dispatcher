@@ -4,6 +4,7 @@ import { CoordinateMissionGrid } from '../components/CoordinateMissionGrid'
 import { generateMission } from '../services/generateMission'
 import {
   calculateMissionScore,
+  expandRouteSegment,
   findShortestSafePath,
   formatElapsedTime,
   isNextRoutePointValid,
@@ -29,6 +30,8 @@ export function GameScreen({ createMission = generateMission }: GameScreenProps)
   const [collisionPoint, setCollisionPoint] = useState<GridPoint | null>(null)
   const [routeMessage, setRouteMessage] = useState('Собери маршрут от старта до цели.')
   const [score, setScore] = useState<number | null>(null)
+  const victoryDialogRef = useRef<HTMLDialogElement>(null)
+  const newMapButtonRef = useRef<HTMLButtonElement>(null)
   const shortestPath = useMemo(() => findShortestSafePath(map) ?? [], [map])
   const canLaunch = samePoint(route.at(-1) ?? map.start, map.goal) && phase !== 'flying' && phase !== 'won'
   const reducedMotion = typeof window !== 'undefined'
@@ -52,14 +55,29 @@ export function GameScreen({ createMission = generateMission }: GameScreenProps)
       return
     }
     if (!isNextRoutePointValid(map, route, point)) {
-      setRouteMessage('Следующая точка должна быть соседней с последней по горизонтали или вертикали.')
+      setRouteMessage('Выбери другую точку на той же горизонтали или вертикали, от −10 до 10. По диагонали лететь нельзя.')
       return
     }
-    setRoute((current) => [...current, point])
+    const segment = expandRouteSegment(map, route, point)
+    const goalIndex = segment.findIndex((cell) => samePoint(cell, map.goal))
+    const addedPoints = goalIndex >= 0 ? segment.slice(0, goalIndex + 1) : segment
+    const destination = addedPoints[addedPoints.length - 1]
+    setRoute((current) => [...current, ...addedPoints])
     setCollisionPoint(null)
     setScore(null)
     setPhase('planning')
-    setRouteMessage('Точка ' + pointLabel(point) + ' добавлена в маршрут.')
+    setRouteMessage('Отрезок до ' + pointLabel(destination) + ' добавлен: ' + addedPoints.length + ' клеток. Все клетки будут проверены во время полёта.')
+  }
+
+  function undoPoint() {
+    if (route.length < 2 || phase === 'flying' || phase === 'won') return
+    const previous = route[route.length - 2]
+    setRoute((current) => current.slice(0, -1))
+    setShipPosition(previous)
+    setCollisionPoint(null)
+    setScore(null)
+    setPhase('planning')
+    setRouteMessage('Последний шаг отменён. Маршрут заканчивается в точке ' + pointLabel(previous) + '.')
   }
 
   function launchFlight() {
@@ -89,6 +107,14 @@ export function GameScreen({ createMission = generateMission }: GameScreenProps)
     setScore(null)
     setRouteMessage('Новая карта готова. Собери маршрут от старта до цели.')
   }
+
+  useEffect(() => {
+    if (phase !== 'won') return
+    const dialog = victoryDialogRef.current
+    if (!dialog) return
+    dialog.showModal()
+    return () => { if (dialog.open) dialog.close() }
+  }, [phase])
 
   useEffect(() => {
     if (phase !== 'flying') return
@@ -156,7 +182,8 @@ export function GameScreen({ createMission = generateMission }: GameScreenProps)
           <button className="button button-dark" type="button" onClick={launchFlight} disabled={!canLaunch}>
             <span aria-hidden="true">▶</span> Запустить полёт
           </button>
-          <button className="button button-secondary" type="button" onClick={startNewMission}>Новая карта ↻</button>
+          <button ref={newMapButtonRef} className="button button-secondary" type="button" onClick={startNewMission}>Новая карта ↻</button>
+          <button className="game-undo" type="button" onClick={undoPoint} disabled={route.length < 2 || phase === 'flying' || phase === 'won'}>↶ Отменить последний шаг</button>
         </div>
 
         <p className="game-message" role="status" aria-live="polite">{routeMessage}</p>
@@ -167,9 +194,9 @@ export function GameScreen({ createMission = generateMission }: GameScreenProps)
           <p className="eyebrow">Как пройти миссию</p>
           <h2>Три шага до цели</h2>
           <ol>
-            <li><span>01</span><p>Начало <strong>S</strong> и цель отмечены на сетке. Красные астероиды лучше облететь.</p></li>
-            <li><span>02</span><p>Добавляй по одной соседней координате: только вправо, влево, вверх или вниз.</p></li>
-            <li><span>03</span><p>Нажми <strong>«Запустить полёт»</strong> и посмотри, получится ли долететь без столкновения.</p></li>
+            <li><span>01</span><p>Найди <strong>S — старт</strong> и <strong>G — цель</strong> на карте от −10 до 10. Красные астероиды с крестиком нужно облететь.</p></li>
+            <li><span>02</span><p>Выбирай близкую или далёкую точку на той же горизонтали или вертикали. Все клетки отрезка войдут в маршрут. Диагонали запрещены.</p></li>
+            <li><span>03</span><p>Нажми <strong>«Запустить полёт»</strong>: корабль проверит каждую клетку пути. Для исправления нажми на прежнюю точку или отмени последний шаг.</p></li>
           </ol>
           <p className="game-score-note">За безопасную посадку — до 1 000 очков. Лишние шаги уменьшают счёт; время только для интереса.</p>
           <OrbiCompanion state={phase === 'won' ? 'success' : collisionPoint ? 'correction' : 'idle'} />
@@ -192,5 +219,21 @@ export function GameScreen({ createMission = generateMission }: GameScreenProps)
         </section>}
       </aside>
     </div>
+    <dialog ref={victoryDialogRef} className="game-victory" aria-labelledby="game-victory-title" aria-describedby="game-victory-description" onClose={() => newMapButtonRef.current?.focus()}>
+      <div className="game-victory__content">
+        <span className="game-victory__medal" aria-hidden="true">★</span>
+        <p className="eyebrow">Безопасная посадка · миссия завершена</p>
+        <h2 id="game-victory-title">Космос покорён!</h2>
+        <p id="game-victory-description">Ты провёл корабль через астероиды и доставил его в точку {pointLabel(map.goal)}. Отличная работа, командир!</p>
+        <dl className="game-result__stats">
+          <div><dt>Очки</dt><dd>{score?.toLocaleString('ru-RU') ?? 0} / 1 000</dd></div>
+          <div><dt>Время</dt><dd>{formatElapsedTime(elapsedMs)}</dd></div>
+          <div><dt>Твой маршрут</dt><dd>{route.length - 1} шагов</dd></div>
+          <div><dt>Кратчайший путь</dt><dd>{Math.max(0, shortestPath.length - 1)} шагов</dd></div>
+        </dl>
+        <button className="button button-dark" type="button" onClick={startNewMission}>Следующая миссия →</button>
+        <button className="button button-secondary" type="button" onClick={() => victoryDialogRef.current?.close()}>Посмотреть свой маршрут</button>
+      </div>
+    </dialog>
   </section>
 }
