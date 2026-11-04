@@ -100,13 +100,13 @@ jobs:
         run: composer install --working-dir=server --no-dev --no-interaction --prefer-dist --optimize-autoloader
       - name: Package Laravel application
         run: tar -czf /tmp/orbital-dispatcher-release.tar.gz --exclude='./.env' -C server .
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: orbital-dispatcher-production-app
           path: server/public/app/
           if-no-files-found: error
           retention-days: 14
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: orbital-dispatcher-laravel-release
           path: /tmp/orbital-dispatcher-release.tar.gz
